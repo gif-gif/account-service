@@ -1,0 +1,4 @@
+.gocache/
+bin/
+coverage.out
+*.test
