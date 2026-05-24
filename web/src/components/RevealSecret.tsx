@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { Button } from "./ui/button";
+
 type Props = {
   label: string;
   value: string;
@@ -11,12 +13,12 @@ export function RevealSecret({ label, value }: Props) {
   useEffect(() => () => setRevealed(false), []);
 
   return (
-    <div>
+    <div className="secret-box">
       <span>{label}</span>
       {revealed ? <code>{value}</code> : null}
-      <button type="button" onClick={() => setRevealed(true)}>
+      <Button size="sm" type="button" variant="secondary" onClick={() => setRevealed(true)}>
         Reveal {label}
-      </button>
+      </Button>
     </div>
   );
 }

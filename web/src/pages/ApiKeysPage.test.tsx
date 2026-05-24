@@ -17,6 +17,7 @@ describe("ApiKeysPage", () => {
 
     render(<ApiKeysPage />);
 
+    expect(screen.getByText("Caller credentials")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Name"), "worker");
     await userEvent.type(screen.getByLabelText("Description"), "background worker");
     await userEvent.click(screen.getByRole("button", { name: "Create API key" }));

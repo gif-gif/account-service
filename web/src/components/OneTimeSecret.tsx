@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { Button } from "./ui/button";
+
 type Props = {
   label: string;
   value: string;
@@ -13,12 +15,12 @@ export function OneTimeSecret({ label, value }: Props) {
   }
 
   return (
-    <section>
+    <section className="secret-box">
       <strong>{label}</strong>
       <code>{value}</code>
-      <button type="button" onClick={() => setVisible(false)}>
+      <Button size="sm" type="button" variant="secondary" onClick={() => setVisible(false)}>
         Dismiss {label}
-      </button>
+      </Button>
     </section>
   );
 }
