@@ -65,6 +65,10 @@ create table if not exists admin_users (
     updated_at timestamptz not null default now()
 );
 
+insert into admin_users (username, password_hash, status)
+values ('admin', crypt('strongpass', gen_salt('bf')), 'active')
+on conflict (username) do nothing;
+
 create table if not exists admin_sessions (
     id uuid primary key default gen_random_uuid(),
     admin_user_id uuid not null references admin_users (id) on delete cascade,
