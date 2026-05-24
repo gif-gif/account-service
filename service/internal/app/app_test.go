@@ -8,6 +8,7 @@ import (
 
 	"account-service/service/internal/accounts"
 	"account-service/service/internal/audit"
+	"account-service/service/internal/callers"
 	"account-service/service/internal/leases"
 	"account-service/service/internal/security"
 )
@@ -47,5 +48,29 @@ func TestNewRegistersLeaseRoutes(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+}
+
+func TestNewRegistersCallerRoutesAndCORS(t *testing.T) {
+	app := New(Options{
+		CallerStore: callers.NewMemoryStore(),
+		CORSOrigins: []string{"https://admin.example.com"},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(`{"name":"worker","description":"test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://admin.example.com")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusCreated)
+	}
+	if resp.Header.Get("Access-Control-Allow-Origin") != "https://admin.example.com" {
+		t.Fatalf("Allow-Origin = %q, want frontend origin", resp.Header.Get("Access-Control-Allow-Origin"))
+	}
+	if resp.Header.Get("X-Request-ID") == "" {
+		t.Fatal("expected X-Request-ID response header")
 	}
 }

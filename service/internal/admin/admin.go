@@ -103,9 +103,17 @@ func NewService(store *MemoryStore, secret string, secure bool) *Service {
 }
 
 func RegisterRoutes(app *fiber.App, service *Service) {
-	app.Post("/api/v1/admin/login", service.login)
+	app.Post("/api/v1/admin/login", service.LoginHandler())
 	app.Get("/api/v1/admin/me", service.me)
 	app.Post("/api/v1/admin/logout", service.logout)
+}
+
+func (service *Service) LoginHandler() fiber.Handler {
+	return service.login
+}
+
+func (service *Service) CurrentSession(c fiber.Ctx) (Session, bool) {
+	return service.currentSession(c)
 }
 
 func (service *Service) login(c fiber.Ctx) error {
