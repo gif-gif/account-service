@@ -1,5 +1,12 @@
 import { FormEvent, useEffect } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import type { AccountsStore } from "../store/accounts";
 import { useAccountsStore } from "../store/accounts";
 
@@ -24,53 +31,111 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     void load();
   }
 
+  const activeAccounts = accounts.filter((account) => account.status === "active").length;
+  const totalQuota = accounts.reduce((total, account) => total + account.quota_remaining, 0);
+  const errorStates = accounts.filter((account) => !["active", "available"].includes(account.status)).length;
+
   return (
-    <main>
-      <h1>Accounts</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Region
-          <input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
-        </label>
-        <label>
-          Account type
-          <input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
-        </label>
-        <label>
-          Status
-          <input value={filters.status} onChange={(event) => setFilter("status", event.target.value)} />
-        </label>
-        <label>
-          Tags
-          <input value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
-        </label>
-        <button type="submit">Apply filters</button>
-      </form>
-      {loading ? <p>Loading accounts</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
-      <table>
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Region</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Quota</th>
-          </tr>
-        </thead>
-        <tbody>
-          {accounts.map((account) => (
-            <tr key={account.id}>
-              <td>{account.username}</td>
-              <td>{account.region}</td>
-              <td>{account.account_type}</td>
-              <td>{account.status}</td>
-              <td>{account.quota_remaining}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {!loading && accounts.length === 0 && !error ? <p>No accounts</p> : null}
+    <main className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Accounts</h1>
+          <p className="page-description">Query account capacity and operational state.</p>
+        </div>
+      </div>
+      <div className="metric-grid">
+        <MetricCard label="Active accounts" value={activeAccounts.toString()} />
+        <MetricCard label="Total quota" value={totalQuota.toString()} />
+        <MetricCard label="Active leases" value="-" />
+        <MetricCard label="Error states" value={errorStates.toString()} />
+      </div>
+      <div className="content-stack">
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="filter-grid" onSubmit={handleSubmit}>
+              <Label>
+                Region
+                <Input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
+              </Label>
+              <Label>
+                Account type
+                <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
+              </Label>
+              <Label>
+                Status
+                <Input value={filters.status} onChange={(event) => setFilter("status", event.target.value)} />
+              </Label>
+              <Label>
+                Tags
+                <Input value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
+              </Label>
+              <Label>
+                Minimum quota
+                <Input
+                  min={0}
+                  type="number"
+                  value={filters.minQuotaRemaining}
+                  onChange={(event) => setFilter("minQuotaRemaining", Number(event.target.value || 0))}
+                />
+              </Label>
+              <Button type="submit">Apply filters</Button>
+            </form>
+          </CardContent>
+        </Card>
+        {loading ? <p className="empty-state">Loading accounts</p> : null}
+        {error ? (
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Accounts unavailable</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account inventory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Region</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Quota</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {accounts.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell>{account.username}</TableCell>
+                    <TableCell>{account.region}</TableCell>
+                    <TableCell>{account.account_type}</TableCell>
+                    <TableCell>
+                      <Badge variant={account.status === "active" ? "success" : "secondary"}>{account.status}</Badge>
+                    </TableCell>
+                    <TableCell>{account.quota_remaining}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {!loading && accounts.length === 0 && !error ? <p className="empty-state">No accounts</p> : null}
+          </CardContent>
+        </Card>
+      </div>
     </main>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent>
+        <p className="metric-label">{label}</p>
+        <p className="metric-value">{value}</p>
+      </CardContent>
+    </Card>
   );
 }

@@ -34,6 +34,8 @@ describe("AccountsPage", () => {
 
     render(<AccountsPage store={store} />);
 
+    expect(screen.getByText("Active accounts")).toBeInTheDocument();
+    expect(screen.getByText("Total quota")).toBeInTheDocument();
     await screen.findByText("user@example.com");
     await userEvent.type(screen.getByLabelText("Region"), "us");
     await userEvent.type(screen.getByLabelText("Account type"), "pro");

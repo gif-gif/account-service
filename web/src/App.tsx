@@ -1,19 +1,18 @@
-import { AccountDetailPage } from "./pages/AccountDetailPage";
-import { AccountsPage } from "./pages/AccountsPage";
-import { ApiKeysPage } from "./pages/ApiKeysPage";
-import { AuditLogsPage } from "./pages/AuditLogsPage";
-import { LeasesPage } from "./pages/LeasesPage";
+import { AdminShell } from "./components/AdminShell";
 import { LoginPage } from "./pages/LoginPage";
+import type { AuthStore } from "./store/auth";
+import { useAuthStore } from "./store/auth";
 
-export function App() {
-  return (
-    <>
-      <LoginPage />
-      <AccountsPage />
-      <AccountDetailPage />
-      <LeasesPage />
-      <ApiKeysPage />
-      <AuditLogsPage />
-    </>
-  );
+type Props = {
+  authStore?: AuthStore;
+};
+
+export function App({ authStore = useAuthStore }: Props) {
+  const user = authStore((state) => state.user);
+
+  if (!user) {
+    return <LoginPage store={authStore} />;
+  }
+
+  return <AdminShell authStore={authStore} />;
 }

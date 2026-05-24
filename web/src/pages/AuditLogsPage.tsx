@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { Badge } from "../components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
 
 type AuditLog = {
@@ -18,18 +21,46 @@ export function AuditLogsPage() {
   }, []);
 
   return (
-    <main>
-      <h1>Audit logs</h1>
-      <ul>
-        {logs.map((log) => (
-          <li key={log.id}>
-            <span>{log.actor_type}</span>
-            <span>{log.action}</span>
-            <span>{log.request_id}</span>
-            <code>{Object.values(log.metadata).join(" ")}</code>
-          </li>
-        ))}
-      </ul>
+    <main className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Audit logs</h1>
+          <p className="page-description">Review administrative and caller activity with request correlation.</p>
+        </div>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity stream</CardTitle>
+          <CardDescription>Sensitive metadata values are expected to be redacted by the API.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Actor</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Request ID</TableHead>
+                <TableHead>Metadata</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>
+                    <Badge variant="secondary">{log.actor_type}</Badge>
+                  </TableCell>
+                  <TableCell>{log.action}</TableCell>
+                  <TableCell>{log.request_id}</TableCell>
+                  <TableCell>
+                    <code className="metadata-code">{Object.values(log.metadata).join(" ")}</code>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {logs.length === 0 ? <p className="empty-state">No audit logs</p> : null}
+        </CardContent>
+      </Card>
     </main>
   );
 }

@@ -1,5 +1,10 @@
 import { FormEvent, useState } from "react";
 
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { apiFetch } from "../lib/api";
 
 export function AccountDetailPage() {
@@ -28,44 +33,55 @@ export function AccountDetailPage() {
   }
 
   return (
-    <main>
-      <h1>Account detail</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input name="username" />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" />
-        </label>
-        <label>
-          Login URL
-          <input name="login_url" />
-        </label>
-        <label>
-          Access token
-          <input name="access_token" />
-        </label>
-        <label>
-          Refresh token
-          <input name="refresh_token" />
-        </label>
-        <label>
-          Region
-          <input name="region" />
-        </label>
-        <label>
-          Account type
-          <input name="account_type" />
-        </label>
-        <label>
-          Quota remaining
-          <input name="quota_remaining" type="number" />
-        </label>
-        <button type="submit">Save account</button>
-      </form>
-      {savedID ? <p>Saved {savedID}</p> : null}
+    <main className="page">
+      <Card>
+        <CardHeader>
+          <CardTitle>Account detail</CardTitle>
+          <CardDescription>Create an account record. Sensitive fields stay inside the form until submitted.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <Label>
+              Username
+              <Input name="username" />
+            </Label>
+            <Label>
+              Password
+              <Input name="password" type="password" />
+            </Label>
+            <Label>
+              Login URL
+              <Input name="login_url" />
+            </Label>
+            <Label>
+              Access token
+              <Input name="access_token" />
+            </Label>
+            <Label>
+              Refresh token
+              <Input name="refresh_token" />
+            </Label>
+            <Label>
+              Region
+              <Input name="region" />
+            </Label>
+            <Label>
+              Account type
+              <Input name="account_type" />
+            </Label>
+            <Label>
+              Quota remaining
+              <Input name="quota_remaining" type="number" />
+            </Label>
+            <Button type="submit">Save account</Button>
+          </form>
+          {savedID ? (
+            <Alert>
+              <AlertDescription>Saved {savedID}</AlertDescription>
+            </Alert>
+          ) : null}
+        </CardContent>
+      </Card>
     </main>
   );
 }

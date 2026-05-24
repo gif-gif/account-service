@@ -1,5 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
 
 type Lease = {
@@ -28,24 +34,60 @@ export function LeasesPage() {
   }
 
   return (
-    <main>
-      <h1>Leases</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Lease status
-          <input value={status} onChange={(event) => setStatus(event.target.value)} />
-        </label>
-        <button type="submit">Filter leases</button>
-      </form>
-      <ul>
-        {leases.map((lease) => (
-          <li key={lease.lease_id}>
-            <span>{lease.lease_id}</span>
-            <span>{lease.account_id}</span>
-            <span>{lease.status}</span>
-          </li>
-        ))}
-      </ul>
+    <main className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Leases</h1>
+          <p className="page-description">Inspect active and historical account lease assignments.</p>
+        </div>
+      </div>
+      <div className="content-stack">
+        <Card>
+          <CardHeader>
+            <CardTitle>Lease filters</CardTitle>
+            <CardDescription>Filter by active, released, or expired status.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="filter-grid" onSubmit={handleSubmit}>
+              <Label>
+                Lease status
+                <Input value={status} onChange={(event) => setStatus(event.target.value)} />
+              </Label>
+              <Button type="submit">Filter leases</Button>
+            </form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Lease activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lease ID</TableHead>
+                  <TableHead>Account ID</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leases.map((lease) => (
+                  <TableRow key={lease.lease_id}>
+                    <TableCell>{lease.lease_id}</TableCell>
+                    <TableCell>{lease.account_id}</TableCell>
+                    <TableCell>
+                      <Badge variant={lease.status === "active" ? "success" : lease.status === "expired" ? "warning" : "secondary"}>
+                        {lease.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {leases.length === 0 ? <p className="empty-state">No leases</p> : null}
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

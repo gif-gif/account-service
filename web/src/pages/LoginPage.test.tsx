@@ -30,4 +30,15 @@ describe("LoginPage", () => {
     );
     expect(store.getState().user?.username).toBe("admin");
   });
+
+  it("renders as a standalone login surface", () => {
+    render(<LoginPage store={createAuthStore()} />);
+
+    const form = screen.getByRole("form", { name: "Admin login" });
+    expect(screen.getByRole("heading", { name: "Account Admin" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(form.closest(".login-card")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Admin sections" })).not.toBeInTheDocument();
+  });
 });

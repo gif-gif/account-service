@@ -16,6 +16,7 @@ describe("LeasesPage", () => {
     render(<LeasesPage />);
 
     await screen.findByText("lease-id");
+    expect(screen.getByRole("table")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Lease status"), "released");
     await userEvent.click(screen.getByRole("button", { name: "Filter leases" }));
 
