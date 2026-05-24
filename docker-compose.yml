@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: account
+      POSTGRES_USER: account
+      POSTGRES_PASSWORD: account
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U account -d account"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - account_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  account_postgres_data:
