@@ -1,1 +1,7 @@
 .worktrees/
+*.env
+.env
+service/.gocache/
+web/dist/
+web/node_modules/
+web/tsconfig.tsbuildinfo
