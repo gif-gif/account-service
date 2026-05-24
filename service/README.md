@@ -23,6 +23,14 @@ go test ./...
 go run ./cmd/account-service
 ```
 
+From the repository root, Docker Compose can manage PostgreSQL and the backend process:
+
+```bash
+docker compose up --build service
+```
+
+Runtime configuration is loaded from the root `.env` file by Docker Compose. The service container must use `HTTP_HOST=0.0.0.0` so the backend listens outside the container.
+
 For migration integration tests, set:
 
 ```bash
