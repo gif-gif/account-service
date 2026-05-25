@@ -10,7 +10,7 @@ The frontend uses Vite modes to separate runtime configuration. Business code re
 | --- | --- | --- | --- |
 | Local | `localdev` | `.env.localdev` | `http://localhost:8000` |
 | Development | `development` | `.env.development` | `https://dev-api.example.com` |
-| Test | `test` | `.env.test` | `https://test-api.example.com` |
+| Test | `test` | `.env.test` | `https://account.goio.uk` |
 | Production | `production` | `.env.production` | `https://api.example.com` |
 
 Required variables:

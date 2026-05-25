@@ -1,4 +1,5 @@
 import type { APIErrorBody } from "./types";
+import { apiBaseURL } from "./env";
 
 export class APIError extends Error {
   code: string;
@@ -15,7 +16,7 @@ export class APIError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const baseURL = import.meta.env.VITE_API_BASE_URL ?? "";
+  const baseURL = apiBaseURL();
   const response = await fetch(`${baseURL}${path}`, {
     ...init,
     credentials: "include",
