@@ -155,6 +155,23 @@ func TestHandlersExposeAccountAPI(t *testing.T) {
 	if statusResp.StatusCode != http.StatusOK {
 		t.Fatalf("status update status = %d, want %d", statusResp.StatusCode, http.StatusOK)
 	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/"+accountID, nil)
+	deleteResp, err := app.Test(deleteReq)
+	if err != nil {
+		t.Fatalf("delete app.Test() error = %v", err)
+	}
+	if deleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("delete status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
+	}
+
+	getDeletedResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+accountID, nil))
+	if err != nil {
+		t.Fatalf("get deleted app.Test() error = %v", err)
+	}
+	if getDeletedResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("get deleted status = %d, want %d", getDeletedResp.StatusCode, http.StatusNotFound)
+	}
 }
 
 func mustCodec(t *testing.T) security.CredentialCodec {

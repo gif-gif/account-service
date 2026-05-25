@@ -12,8 +12,12 @@ export type Account = {
   region: string;
   account_type: string;
   status: string;
+  quota_total?: number;
+  quota_used?: number;
   quota_remaining: number;
+  max_concurrent_leases?: number;
   tags: string[];
+  notes?: string;
 };
 
 export type AccountFilters = {

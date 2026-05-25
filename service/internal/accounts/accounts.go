@@ -273,6 +273,16 @@ func (service *Service) Update(id string, request UpdateAccountRequest) (Account
 	return service.decrypt(account)
 }
 
+func (service *Service) Delete(id string) error {
+	service.repo.mu.Lock()
+	defer service.repo.mu.Unlock()
+	if _, ok := service.repo.accounts[id]; !ok {
+		return errors.New("account not found")
+	}
+	delete(service.repo.accounts, id)
+	return nil
+}
+
 func (service *Service) Query(request QueryRequest) ([]Account, error) {
 	service.repo.mu.Lock()
 	stored := make([]StoredAccount, 0, len(service.repo.accounts))
@@ -340,6 +350,7 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Get("/api/v1/accounts/:id", service.handleGet)
 	app.Patch("/api/v1/accounts/:id", service.handleUpdate)
 	app.Post("/api/v1/accounts/:id/status", service.handleStatus)
+	app.Delete("/api/v1/accounts/:id", service.handleDelete)
 }
 
 func (service *Service) handleQuery(c fiber.Ctx) error {
@@ -400,6 +411,13 @@ func (service *Service) handleStatus(c fiber.Ctx) error {
 		return jsonError(c, http.StatusUnprocessableEntity, "invalid_status", err.Error())
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{"account": account})
+}
+
+func (service *Service) handleDelete(c fiber.Ctx) error {
+	if err := service.Delete(c.Params("id")); err != nil {
+		return jsonError(c, http.StatusNotFound, "account_not_found", "Account not found")
+	}
+	return c.Status(http.StatusOK).JSON(fiber.Map{"ok": true})
 }
 
 func jsonError(c fiber.Ctx, status int, code string, message string) error {

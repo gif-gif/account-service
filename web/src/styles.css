@@ -270,12 +270,6 @@ input {
   align-items: end;
 }
 
-.two-column-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-}
-
 .ui-button {
   min-height: 44px;
   border: 1px solid transparent;
@@ -498,6 +492,111 @@ input {
   text-align: center;
 }
 
+.admin-panel {
+  gap: 0;
+}
+
+.admin-card-header {
+  align-items: end;
+  gap: 16px;
+}
+
+.admin-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar-field {
+  width: 150px;
+}
+
+.toolbar-field--compact {
+  width: 120px;
+}
+
+.tag-filter {
+  width: min(100%, 360px);
+  margin-bottom: 14px;
+}
+
+.account-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 220px;
+}
+
+.account-name {
+  font-weight: 700;
+}
+
+.account-subtext,
+.muted-text {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.numeric-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-list,
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions-col {
+  width: 132px;
+  text-align: right;
+}
+
+.row-actions {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.account-form {
+  display: grid;
+  gap: 16px;
+}
+
+.form-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-row--wide {
+  grid-column: 1 / -1;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  padding: 12px;
+}
+
+.detail-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-item strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -513,8 +612,26 @@ input {
   .shell-nav,
   .metric-grid,
   .filter-grid,
-  .two-column-grid {
+  .form-grid--two,
+  .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-field,
+  .toolbar-field--compact,
+  .tag-filter {
+    width: 100%;
   }
 
   .page,

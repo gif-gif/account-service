@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { AccountDetailPage } from "../pages/AccountDetailPage";
 import { AccountsPage } from "../pages/AccountsPage";
 import { ApiKeysPage } from "../pages/ApiKeysPage";
 import { AuditLogsPage } from "../pages/AuditLogsPage";
@@ -69,12 +68,7 @@ export function AdminShell({ authStore = useAuthStore }: Props) {
           </div>
         </header>
         {activeSection === "overview" ? <OverviewPage /> : null}
-        {activeSection === "accounts" ? (
-          <div className="two-column-grid page">
-            <AccountsPage />
-            <AccountDetailPage />
-          </div>
-        ) : null}
+        {activeSection === "accounts" ? <AccountsPage /> : null}
         {activeSection === "leases" ? <LeasesPage /> : null}
         {activeSection === "api-keys" ? <ApiKeysPage /> : null}
         {activeSection === "audit-logs" ? <AuditLogsPage /> : null}
