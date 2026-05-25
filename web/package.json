@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode localdev",
     "build": "tsc -b && vite build",
+    "build:local": "tsc -b && vite build --mode localdev",
+    "build:dev": "tsc -b && vite build --mode development",
+    "build:test": "tsc -b && vite build --mode test",
+    "build:prod": "tsc -b && vite build --mode production",
+    "check:env": "node scripts/check-env-files.mjs",
     "test": "vitest"
   },
   "dependencies": {
