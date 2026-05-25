@@ -17,6 +17,8 @@ type Config struct {
 	MaxLeaseTTL                       time.Duration
 	LeaseCleanupInterval              time.Duration
 	AdminSessionSecret                string
+	JWTAccessTokenTTL                 time.Duration
+	JWTRefreshTokenTTL                time.Duration
 	CORSAllowedOrigins                []string
 	LogLevel                          string
 	HealthCheckDatabaseTimeout        time.Duration
@@ -25,6 +27,8 @@ type Config struct {
 	DefaultLeaseTTLSeconds            int
 	MaxLeaseTTLSeconds                int
 	LeaseCleanupIntervalSeconds       int
+	JWTAccessTokenTTLSeconds          int
+	JWTRefreshTokenTTLSeconds         int
 	HealthCheckDatabaseTimeoutSeconds int
 }
 
@@ -41,6 +45,8 @@ func Load() (Config, error) {
 		DefaultLeaseTTLSeconds:            envInt("DEFAULT_LEASE_TTL_SECONDS", 900),
 		MaxLeaseTTLSeconds:                envInt("MAX_LEASE_TTL_SECONDS", 7200),
 		LeaseCleanupIntervalSeconds:       envInt("LEASE_CLEANUP_INTERVAL_SECONDS", 60),
+		JWTAccessTokenTTLSeconds:          envInt("JWT_ACCESS_TOKEN_TTL_SECONDS", 900),
+		JWTRefreshTokenTTLSeconds:         envInt("JWT_REFRESH_TOKEN_TTL_SECONDS", 604800),
 		HealthCheckDatabaseTimeoutSeconds: envInt("HEALTH_CHECK_DATABASE_TIMEOUT_SECONDS", 3),
 	}
 
@@ -62,6 +68,12 @@ func Load() (Config, error) {
 	if cfg.LeaseCleanupIntervalSeconds <= 0 {
 		return Config{}, errors.New("LEASE_CLEANUP_INTERVAL_SECONDS must be greater than 0")
 	}
+	if cfg.JWTAccessTokenTTLSeconds <= 0 {
+		return Config{}, errors.New("JWT_ACCESS_TOKEN_TTL_SECONDS must be greater than 0")
+	}
+	if cfg.JWTRefreshTokenTTLSeconds <= 0 {
+		return Config{}, errors.New("JWT_REFRESH_TOKEN_TTL_SECONDS must be greater than 0")
+	}
 	if cfg.HealthCheckDatabaseTimeoutSeconds <= 0 {
 		return Config{}, errors.New("HEALTH_CHECK_DATABASE_TIMEOUT_SECONDS must be greater than 0")
 	}
@@ -72,6 +84,8 @@ func Load() (Config, error) {
 	cfg.DefaultLeaseTTL = time.Duration(cfg.DefaultLeaseTTLSeconds) * time.Second
 	cfg.MaxLeaseTTL = time.Duration(cfg.MaxLeaseTTLSeconds) * time.Second
 	cfg.LeaseCleanupInterval = time.Duration(cfg.LeaseCleanupIntervalSeconds) * time.Second
+	cfg.JWTAccessTokenTTL = time.Duration(cfg.JWTAccessTokenTTLSeconds) * time.Second
+	cfg.JWTRefreshTokenTTL = time.Duration(cfg.JWTRefreshTokenTTLSeconds) * time.Second
 	cfg.HealthCheckDatabaseTimeout = time.Duration(cfg.HealthCheckDatabaseTimeoutSeconds) * time.Second
 
 	return cfg, nil

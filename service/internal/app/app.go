@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"account-service/service/internal/accounts"
+	"account-service/service/internal/admin"
 	"account-service/service/internal/callers"
 	"account-service/service/internal/health"
 	"account-service/service/internal/httpx"
@@ -14,6 +15,7 @@ import (
 
 type Options struct {
 	HealthChecker  health.Checker
+	AdminService   *admin.Service
 	AccountService *accounts.Service
 	LeaseService   *leases.Service
 	CallerStore    *callers.MemoryStore
@@ -34,6 +36,12 @@ func New(options Options) *fiber.App {
 		checker = health.CheckerFunc(func(context.Context) error { return nil })
 	}
 	health.Register(fiberApp, checker)
+	if options.AdminService != nil {
+		admin.RegisterRoutes(fiberApp, options.AdminService)
+		fiberApp.Use("/api/v1/accounts", httpx.AdminSession(options.AdminService))
+		fiberApp.Use("/api/v1/leases", httpx.AdminSession(options.AdminService))
+		fiberApp.Use("/api/v1/api-keys", httpx.AdminSession(options.AdminService))
+	}
 	if options.AccountService != nil {
 		accounts.RegisterRoutes(fiberApp, options.AccountService)
 	}

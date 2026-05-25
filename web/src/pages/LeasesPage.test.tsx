@@ -3,11 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LeasesPage } from "./LeasesPage";
+import { clearAuthTokens, setAuthTokens } from "../lib/authTokens";
 
 describe("LeasesPage", () => {
-  beforeEach(() => vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com"));
+  beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
+    clearAuthTokens();
+  });
 
   it("loads leases with status filter", async () => {
+    setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ leases: [{ lease_id: "lease-id", account_id: "account-id", status: "active" }] }), { status: 200 }),
     );
@@ -22,7 +27,10 @@ describe("LeasesPage", () => {
 
     expect(fetchMock).toHaveBeenLastCalledWith(
       "https://api.example.com/api/v1/leases?status=released",
-      expect.objectContaining({ credentials: "include" }),
+      expect.objectContaining({
+        credentials: "omit",
+        headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+      }),
     );
   });
 });

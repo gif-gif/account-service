@@ -1,11 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { clearAuthTokens, setAuthTokens } from "./lib/authTokens";
 import { createAuthStore } from "./store/auth";
 
 describe("App", () => {
+  beforeEach(() => {
+    clearAuthTokens();
+  });
+
   it("shows only the standalone login page when signed out", () => {
     const store = createAuthStore();
 
@@ -32,5 +37,16 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "API Keys" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Admin login" })).not.toBeInTheDocument();
+  });
+
+  it("restores the signed-in user from saved tokens on startup", async () => {
+    setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ user: { id: "admin-id", username: "admin" } }), { status: 200 })));
+    const store = createAuthStore();
+
+    render(<App authStore={store} />);
+
+    expect(await screen.findByRole("navigation", { name: "Admin sections" })).toBeInTheDocument();
   });
 });

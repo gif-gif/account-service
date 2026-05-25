@@ -94,7 +94,7 @@ function OverviewPage() {
       </div>
       <div className="metric-grid">
         <MetricCard label="Primary workspace" value="Accounts" />
-        <MetricCard label="Security posture" value="Session auth" />
+        <MetricCard label="Security posture" value="JWT auth" />
         <MetricCard label="Lease flow" value="Managed" />
         <MetricCard label="Audit trail" value="Tracked" />
       </div>

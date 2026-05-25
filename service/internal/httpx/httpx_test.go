@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -126,7 +127,7 @@ func TestAdminSessionMiddleware(t *testing.T) {
 	}
 	store := admin.NewMemoryStore(time.Hour)
 	store.AddUser(admin.User{ID: "admin-id", Username: "admin", PasswordHash: passwordHash, Status: "active"})
-	service := admin.NewService(store, "session-secret", true)
+	service := admin.NewService(store, "session-secret", 15*time.Minute, 7*24*time.Hour)
 	app := fiber.New()
 	app.Post("/login", service.LoginHandler())
 	app.Use(AdminSession(service))
@@ -136,10 +137,13 @@ func TestAdminSessionMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("login app.Test() error = %v", err)
 	}
-	cookie := loginResp.Header.Get("Set-Cookie")
+	var loginBody admin.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode login body: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
-	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Authorization", "Bearer "+loginBody.AccessToken)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("admin app.Test() error = %v", err)

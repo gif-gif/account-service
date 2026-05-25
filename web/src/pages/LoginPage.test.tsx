@@ -3,15 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LoginPage } from "./LoginPage";
+import { clearAuthTokens } from "../lib/authTokens";
 import { createAuthStore } from "../store/auth";
 
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
+    clearAuthTokens();
   });
 
   it("submits admin credentials", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ user: { id: "admin-id", username: "admin" } }), { status: 200 }));
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ user: { id: "admin-id", username: "admin" }, accessToken: "access-token", refreshToken: "refresh-token" }), {
+        status: 200,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const store = createAuthStore();
 
@@ -25,7 +31,7 @@ describe("LoginPage", () => {
       "https://api.example.com/api/v1/admin/login",
       expect.objectContaining({
         method: "POST",
-        credentials: "include",
+        credentials: "omit",
       }),
     );
     expect(store.getState().user?.username).toBe("admin");

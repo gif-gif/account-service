@@ -41,6 +41,12 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.LeaseCleanupInterval != time.Minute {
 		t.Fatalf("LeaseCleanupInterval = %s, want 1m", cfg.LeaseCleanupInterval)
 	}
+	if cfg.JWTAccessTokenTTL != 15*time.Minute {
+		t.Fatalf("JWTAccessTokenTTL = %s, want 15m", cfg.JWTAccessTokenTTL)
+	}
+	if cfg.JWTRefreshTokenTTL != 7*24*time.Hour {
+		t.Fatalf("JWTRefreshTokenTTL = %s, want 168h", cfg.JWTRefreshTokenTTL)
+	}
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
 	}
