@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { useI18n } from "../store/settings";
 import { Button } from "./ui/button";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function RevealSecret({ label, value }: Props) {
+  const { t } = useI18n();
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => () => setRevealed(false), []);
@@ -17,7 +19,7 @@ export function RevealSecret({ label, value }: Props) {
       <span>{label}</span>
       {revealed ? <code>{value}</code> : null}
       <Button size="sm" type="button" variant="secondary" onClick={() => setRevealed(true)}>
-        Reveal {label}
+        {t("common.view")} {label}
       </Button>
     </div>
   );

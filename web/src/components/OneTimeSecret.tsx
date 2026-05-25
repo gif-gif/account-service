@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useI18n } from "../store/settings";
 import { Button } from "./ui/button";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function OneTimeSecret({ label, value }: Props) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(true);
 
   if (!visible) {
@@ -19,7 +21,7 @@ export function OneTimeSecret({ label, value }: Props) {
       <strong>{label}</strong>
       <code>{value}</code>
       <Button size="sm" type="button" variant="secondary" onClick={() => setVisible(false)}>
-        Dismiss {label}
+        {t("secret.dismiss")} {label}
       </Button>
     </section>
   );

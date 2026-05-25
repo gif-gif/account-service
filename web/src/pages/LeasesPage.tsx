@@ -7,6 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
+import { useI18n } from "../store/settings";
 
 type Lease = {
   lease_id: string;
@@ -15,6 +16,7 @@ type Lease = {
 };
 
 export function LeasesPage() {
+  const { t } = useI18n();
   const [status, setStatus] = useState("");
   const [leases, setLeases] = useState<Lease[]>([]);
 
@@ -37,37 +39,37 @@ export function LeasesPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Leases</h1>
-          <p className="page-description">Inspect active and historical account lease assignments.</p>
+          <h1 className="page-title">{t("leases.title")}</h1>
+          <p className="page-description">{t("leases.description")}</p>
         </div>
       </div>
       <div className="content-stack">
         <Card>
           <CardHeader>
-            <CardTitle>Lease filters</CardTitle>
-            <CardDescription>Filter by active, released, or expired status.</CardDescription>
+            <CardTitle>{t("leases.filters")}</CardTitle>
+            <CardDescription>{t("leases.cardDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="filter-grid" onSubmit={handleSubmit}>
               <Label className="form-row">
-                Lease status
+                {t("leases.status")}
                 <Input value={status} onChange={(event) => setStatus(event.target.value)} />
               </Label>
-              <Button type="submit">Filter leases</Button>
+              <Button type="submit">{t("leases.filter")}</Button>
             </form>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Lease activity</CardTitle>
+            <CardTitle>{t("leases.activity")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Lease ID</TableHead>
-                  <TableHead>Account ID</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("leases.leaseId")}</TableHead>
+                  <TableHead>{t("leases.accountId")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -84,7 +86,7 @@ export function LeasesPage() {
                 ))}
               </TableBody>
             </Table>
-            {leases.length === 0 ? <p className="empty-state">No leases</p> : null}
+            {leases.length === 0 ? <p className="empty-state">{t("leases.empty")}</p> : null}
           </CardContent>
         </Card>
       </div>

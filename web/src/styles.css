@@ -30,12 +30,12 @@
 
 :root {
   color: #0f172a;
-  background: #f6f7f9;
+  background: #f4f6f8;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --background: #f6f7f9;
+  --background: #f4f6f8;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -73,6 +73,11 @@ body {
   color: var(--foreground);
 }
 
+[data-slot="card"] {
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
 button,
 input {
   font: inherit;
@@ -100,11 +105,15 @@ input {
   display: grid;
   min-height: 100dvh;
   place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 246, 248, 0.9)),
+    var(--background);
   padding: 32px 16px;
 }
 
 .login-card {
   width: min(100%, 420px);
+  border-color: #cfd8e3;
 }
 
 .login-mark {
@@ -132,7 +141,7 @@ input {
 .shell {
   display: grid;
   min-height: 100dvh;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
 }
 
 .shell-sidebar {
@@ -141,14 +150,15 @@ input {
   height: 100dvh;
   border-right: 1px solid var(--border);
   background: #ffffff;
-  padding: 20px;
+  padding: 18px 14px;
 }
 
 .shell-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
+  padding: 0 6px;
 }
 
 .shell-brand__mark {
@@ -181,12 +191,15 @@ input {
 
 .shell-nav {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .shell-nav__item {
   justify-content: flex-start;
   width: 100%;
+  min-height: 38px;
+  color: #334155;
+  font-weight: 600;
 }
 
 .shell-main {
@@ -202,11 +215,12 @@ input {
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--border);
-  background: rgba(246, 247, 249, 0.94);
-  padding: 16px 28px;
+  background: rgba(244, 246, 248, 0.94);
+  padding: 12px 24px;
   backdrop-filter: blur(10px);
 }
 
+.shell-topbar__left,
 .shell-user {
   display: flex;
   align-items: center;
@@ -215,10 +229,25 @@ input {
   font-size: 14px;
 }
 
+.topbar-section,
+.settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.topbar-section svg,
+.settings-label svg {
+  width: 16px;
+  height: 16px;
+}
+
 .page {
-  width: min(100%, 1180px);
+  width: min(100%, 1280px);
   margin: 0 auto;
-  padding: 28px;
+  padding: 24px;
 }
 
 .page-header {
@@ -226,12 +255,12 @@ input {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   letter-spacing: 0;
 }
 
@@ -242,9 +271,9 @@ input {
 
 .metric-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .metric-label {
@@ -254,8 +283,8 @@ input {
 }
 
 .metric-value {
-  margin: 8px 0 0;
-  font-size: 26px;
+  margin: 6px 0 0;
+  font-size: 22px;
 }
 
 .content-stack {
@@ -268,6 +297,16 @@ input {
   gap: 12px;
   grid-template-columns: repeat(5, minmax(120px, 1fr)) auto;
   align-items: end;
+}
+
+.metric-grid [data-slot="card"] {
+  background: #ffffff;
+  padding-block: 0;
+}
+
+.metric-grid [data-slot="card-content"],
+.metric-grid [data-slot="card-header"] {
+  padding: 14px 16px;
 }
 
 .ui-button {
@@ -494,32 +533,43 @@ input {
 
 .admin-panel {
   gap: 0;
+  overflow: hidden;
+  padding-block: 0;
 }
 
 .admin-card-header {
   align-items: end;
-  gap: 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+  padding-bottom: 14px;
 }
 
 .admin-toolbar {
   display: flex;
   align-items: end;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .toolbar-field {
-  width: 150px;
+  display: grid !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+  width: 138px;
 }
 
 .toolbar-field--compact {
-  width: 120px;
+  width: 112px;
 }
 
 .tag-filter {
+  display: grid !important;
+  align-items: stretch !important;
+  gap: 6px !important;
   width: min(100%, 360px);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .account-cell {
@@ -550,7 +600,7 @@ input {
 }
 
 .actions-col {
-  width: 132px;
+  width: 118px;
   text-align: right;
 }
 
@@ -597,6 +647,26 @@ input {
   font-size: 14px;
 }
 
+[data-slot="table-container"] {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+[data-slot="table"] {
+  background: #ffffff;
+}
+
+[data-slot="table-head"] {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+[data-slot="table-cell"] {
+  color: #334155;
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -607,6 +677,21 @@ input {
     height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .shell-brand {
+    margin-bottom: 12px;
+  }
+
+  .shell-nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .shell-nav__item {
+    width: auto;
+    min-width: max-content;
   }
 
   .shell-nav,
@@ -643,5 +728,30 @@ input {
   .shell-topbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .shell-topbar__left,
+  .shell-user {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .page-title {
+    font-size: 22px;
+  }
+
+  .page-header > .ui-button,
+  .page-header > button {
+    width: 100%;
+  }
+
+  .account-cell {
+    min-width: 180px;
+  }
+
+  .settings-label {
+    display: none;
   }
 }

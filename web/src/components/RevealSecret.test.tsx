@@ -9,7 +9,7 @@ describe("RevealSecret", () => {
     render(<RevealSecret label="Access token" value="secret-token" />);
 
     expect(screen.queryByText("secret-token")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Reveal Access token" }));
+    await userEvent.click(screen.getByRole("button", { name: "查看 Access token" }));
     expect(screen.getByText("secret-token")).toBeInTheDocument();
   });
 });

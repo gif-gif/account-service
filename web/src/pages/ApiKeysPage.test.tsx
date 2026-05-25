@@ -17,13 +17,13 @@ describe("ApiKeysPage", () => {
 
     render(<ApiKeysPage />);
 
-    expect(screen.getByText("Caller credentials")).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText("Name"), "worker");
-    await userEvent.type(screen.getByLabelText("Description"), "background worker");
-    await userEvent.click(screen.getByRole("button", { name: "Create API key" }));
+    expect(screen.getByText("调用凭证")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("名称"), "worker");
+    await userEvent.type(screen.getByLabelText("描述"), "background worker");
+    await userEvent.click(screen.getByRole("button", { name: "创建 API Key" }));
 
     expect(await screen.findByText("acct_secret")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
+    await userEvent.click(screen.getByRole("button", { name: "关闭 API Key" }));
     expect(screen.queryByText("acct_secret")).not.toBeInTheDocument();
   });
 });

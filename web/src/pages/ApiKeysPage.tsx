@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { apiFetch } from "../lib/api";
+import { useI18n } from "../store/settings";
 
 export function ApiKeysPage() {
+  const { t } = useI18n();
   const [apiKey, setApiKey] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -27,28 +29,28 @@ export function ApiKeysPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">API Keys</h1>
-          <p className="page-description">Create caller credentials for service-to-service access.</p>
+          <h1 className="page-title">{t("apiKeys.title")}</h1>
+          <p className="page-description">{t("apiKeys.description")}</p>
         </div>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Caller credentials</CardTitle>
-          <CardDescription>The plaintext key is shown once after creation.</CardDescription>
+          <CardTitle>{t("apiKeys.cardTitle")}</CardTitle>
+          <CardDescription>{t("apiKeys.cardDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="form-grid" onSubmit={handleSubmit}>
             <Label className="form-row">
-              Name
+              {t("apiKeys.fieldName")}
               <Input name="name" />
             </Label>
             <Label className="form-row">
-              Description
+              {t("apiKeys.fieldDescription")}
               <Input name="description" />
             </Label>
-            <Button type="submit">Create API key</Button>
+            <Button type="submit">{t("apiKeys.create")}</Button>
           </form>
-          {apiKey ? <OneTimeSecret label="API key" value={apiKey} /> : null}
+          {apiKey ? <OneTimeSecret label={t("apiKeys.secretLabel")} value={apiKey} /> : null}
         </CardContent>
       </Card>
     </main>

@@ -9,7 +9,7 @@ describe("OneTimeSecret", () => {
     render(<OneTimeSecret label="API key" value="acct_secret" />);
 
     expect(screen.getByText("acct_secret")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss API key" }));
+    await userEvent.click(screen.getByRole("button", { name: "关闭 API key" }));
     expect(screen.queryByText("acct_secret")).not.toBeInTheDocument();
   });
 });

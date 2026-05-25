@@ -4,6 +4,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
+import { useI18n } from "../store/settings";
 
 type AuditLog = {
   id: string;
@@ -14,6 +15,7 @@ type AuditLog = {
 };
 
 export function AuditLogsPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<AuditLog[]>([]);
 
   useEffect(() => {
@@ -24,23 +26,23 @@ export function AuditLogsPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Audit logs</h1>
-          <p className="page-description">Review administrative and caller activity with request correlation.</p>
+          <h1 className="page-title">{t("audit.title")}</h1>
+          <p className="page-description">{t("audit.description")}</p>
         </div>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Activity stream</CardTitle>
-          <CardDescription>Sensitive metadata values are expected to be redacted by the API.</CardDescription>
+          <CardTitle>{t("audit.cardTitle")}</CardTitle>
+          <CardDescription>{t("audit.cardDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Actor</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Request ID</TableHead>
-                <TableHead>Metadata</TableHead>
+                <TableHead>{t("audit.actor")}</TableHead>
+                <TableHead>{t("audit.action")}</TableHead>
+                <TableHead>{t("audit.requestId")}</TableHead>
+                <TableHead>{t("audit.metadata")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -58,7 +60,7 @@ export function AuditLogsPage() {
               ))}
             </TableBody>
           </Table>
-          {logs.length === 0 ? <p className="empty-state">No audit logs</p> : null}
+          {logs.length === 0 ? <p className="empty-state">{t("audit.empty")}</p> : null}
         </CardContent>
       </Card>
     </main>

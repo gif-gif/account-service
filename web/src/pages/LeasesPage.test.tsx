@@ -22,8 +22,8 @@ describe("LeasesPage", () => {
 
     await screen.findByText("lease-id");
     expect(screen.getByRole("table")).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText("Lease status"), "released");
-    await userEvent.click(screen.getByRole("button", { name: "Filter leases" }));
+    await userEvent.type(screen.getByLabelText("租约状态"), "released");
+    await userEvent.click(screen.getByRole("button", { name: "筛选租约" }));
 
     expect(fetchMock).toHaveBeenLastCalledWith(
       "https://api.example.com/api/v1/leases?status=released",

@@ -23,9 +23,9 @@ describe("LoginPage", () => {
 
     render(<LoginPage store={store} />);
 
-    await userEvent.type(screen.getByLabelText("Username"), "admin");
-    await userEvent.type(screen.getByLabelText("Password"), "password123");
-    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await userEvent.type(screen.getByLabelText("用户名"), "admin");
+    await userEvent.type(screen.getByLabelText("密码"), "password123");
+    await userEvent.click(screen.getByRole("button", { name: "登录" }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.example.com/api/v1/admin/login",
@@ -40,11 +40,11 @@ describe("LoginPage", () => {
   it("renders as a standalone login surface", () => {
     render(<LoginPage store={createAuthStore()} />);
 
-    const form = screen.getByRole("form", { name: "Admin login" });
-    expect(screen.getByRole("heading", { name: "Account Admin" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Username")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    const form = screen.getByRole("form", { name: "管理员登录" });
+    expect(screen.getByRole("heading", { name: "账号服务后台" })).toBeInTheDocument();
+    expect(screen.getByLabelText("用户名")).toBeInTheDocument();
+    expect(screen.getByLabelText("密码")).toBeInTheDocument();
     expect(form.closest(".login-card")).toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Admin sections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "后台导航" })).not.toBeInTheDocument();
   });
 });

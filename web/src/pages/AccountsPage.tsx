@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { apiFetch } from "../lib/api";
 import type { Account, AccountsStore } from "../store/accounts";
 import { useAccountsStore } from "../store/accounts";
+import { useI18n, type TranslationKey } from "../store/settings";
 
 type Props = {
   store?: AccountsStore;
@@ -25,6 +26,7 @@ type DialogState =
   | null;
 
 export function AccountsPage({ store = useAccountsStore }: Props) {
+  const { t } = useI18n();
   const accounts = store((state) => state.accounts);
   const filters = store((state) => state.filters);
   const error = store((state) => state.error);
@@ -93,40 +95,40 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     <main className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Accounts</h1>
-          <p className="page-description">Manage account inventory, quota, credentials, and operational state.</p>
+          <h1 className="page-title">{t("accounts.title")}</h1>
+          <p className="page-description">{t("accounts.description")}</p>
         </div>
         <Button onClick={() => setDialog({ type: "create" })} type="button">
           <Plus />
-          New account
+          {t("accounts.add")}
         </Button>
       </div>
       <div className="metric-grid">
-        <MetricCard label="Active accounts" value={activeAccounts.toString()} />
-        <MetricCard label="Total quota" value={totalQuota.toString()} />
-        <MetricCard label="Regions" value={regions.toString()} />
-        <MetricCard label="Error states" value={errorStates.toString()} />
+        <MetricCard label={t("accounts.activeAccounts")} value={activeAccounts.toString()} />
+        <MetricCard label={t("accounts.quotaRemaining")} value={totalQuota.toString()} />
+        <MetricCard label={t("accounts.regions")} value={regions.toString()} />
+        <MetricCard label={t("accounts.errorStates")} value={errorStates.toString()} />
       </div>
       <div className="content-stack">
         <Card className="admin-panel">
           <CardHeader className="admin-card-header">
-            <CardTitle>Account inventory</CardTitle>
+            <CardTitle>{t("accounts.inventory")}</CardTitle>
             <CardAction>
               <form className="admin-toolbar" onSubmit={handleSubmit}>
                 <Label className="toolbar-field">
-                  Region
+                  {t("accounts.region")}
                   <Input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
                 </Label>
                 <Label className="toolbar-field">
-                  Type
+                  {t("accounts.type")}
                   <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
                 </Label>
                 <Label className="toolbar-field">
-                  Status
+                  {t("accounts.status")}
                   <Input value={filters.status} onChange={(event) => setFilter("status", event.target.value)} />
                 </Label>
                 <Label className="toolbar-field toolbar-field--compact">
-                  Min quota
+                  {t("accounts.minQuota")}
                   <Input
                     min={0}
                     type="number"
@@ -136,33 +138,33 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                 </Label>
                 <Button type="submit" variant="secondary">
                   <Search />
-                  Apply filters
+                  {t("accounts.applyFilters")}
                 </Button>
               </form>
             </CardAction>
           </CardHeader>
           <CardContent>
             <Label className="tag-filter">
-              Tags
-              <Input placeholder="openai, paid" value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
+              {t("accounts.tags")}
+              <Input placeholder={t("accounts.tagsPlaceholder")} value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
             </Label>
-            {loading ? <p className="empty-state">Loading accounts</p> : null}
+            {loading ? <p className="empty-state">{t("accounts.loading")}</p> : null}
             {error ? (
               <Alert role="alert" variant="destructive">
-                <AlertTitle>Accounts unavailable</AlertTitle>
+                <AlertTitle>{t("accounts.errorTitle")}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Region</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Quota</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead className="actions-col">Actions</TableHead>
+                  <TableHead>{t("accounts.account")}</TableHead>
+                  <TableHead>{t("accounts.region")}</TableHead>
+                  <TableHead>{t("accounts.accountType")}</TableHead>
+                  <TableHead>{t("accounts.status")}</TableHead>
+                  <TableHead>{t("accounts.quota")}</TableHead>
+                  <TableHead>{t("accounts.tags")}</TableHead>
+                  <TableHead className="actions-col">{t("common.edit")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -171,7 +173,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                     <TableCell>
                       <div className="account-cell">
                         <span className="account-name">{account.username}</span>
-                        <span className="account-subtext">{account.login_url || "No login URL"}</span>
+                        <span className="account-subtext">{account.login_url || t("accounts.noLoginUrl")}</span>
                       </div>
                     </TableCell>
                     <TableCell>{account.region || "-"}</TableCell>
@@ -192,16 +194,31 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                     </TableCell>
                     <TableCell>
                       <div className="row-actions">
-                        <Button aria-label={`View ${account.username}`} onClick={() => setDialog({ type: "view", account })} size="icon-sm" type="button" variant="ghost">
+                        <Button
+                          aria-label={`${t("common.view")} ${account.username}`}
+                          onClick={() => setDialog({ type: "view", account })}
+                          size="icon-sm"
+                          title={t("common.view")}
+                          type="button"
+                          variant="ghost"
+                        >
                           <Eye />
                         </Button>
-                        <Button aria-label={`Edit ${account.username}`} onClick={() => setDialog({ type: "edit", account })} size="icon-sm" type="button" variant="ghost">
+                        <Button
+                          aria-label={`${t("common.edit")} ${account.username}`}
+                          onClick={() => setDialog({ type: "edit", account })}
+                          size="icon-sm"
+                          title={t("common.edit")}
+                          type="button"
+                          variant="ghost"
+                        >
                           <Pencil />
                         </Button>
                         <Button
-                          aria-label={`Delete ${account.username}`}
+                          aria-label={`${t("common.delete")} ${account.username}`}
                           onClick={() => setDialog({ type: "delete", account })}
                           size="icon-sm"
+                          title={t("common.delete")}
                           type="button"
                           variant="ghost"
                         >
@@ -213,11 +230,19 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                 ))}
               </TableBody>
             </Table>
-            {!loading && accounts.length === 0 && !error ? <p className="empty-state">No accounts</p> : null}
+            {!loading && accounts.length === 0 && !error ? <p className="empty-state">{t("accounts.empty")}</p> : null}
           </CardContent>
         </Card>
       </div>
-      <AccountDialogs dialog={dialog} actionError={actionError} saving={saving} onClose={() => setDialog(null)} onDelete={deleteAccount} onSubmit={submitAccount} />
+      <AccountDialogs
+        actionError={actionError}
+        dialog={dialog}
+        saving={saving}
+        onClose={() => setDialog(null)}
+        onDelete={deleteAccount}
+        onSubmit={submitAccount}
+        t={t}
+      />
     </main>
   );
 }
@@ -229,6 +254,7 @@ function AccountDialogs({
   onDelete,
   onSubmit,
   saving,
+  t,
 }: {
   actionError: string | null;
   dialog: DialogState;
@@ -236,45 +262,53 @@ function AccountDialogs({
   onDelete: (account: Account) => Promise<void>;
   onSubmit: (event: FormEvent<HTMLFormElement>, account?: Account) => Promise<void>;
   saving: boolean;
+  t: (key: TranslationKey) => string;
 }) {
   return (
     <Dialog open={dialog !== null} onOpenChange={(open) => (!open ? onClose() : undefined)}>
       {dialog?.type === "create" ? (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New account</DialogTitle>
-            <DialogDescription>Create an account record for allocation and quota tracking.</DialogDescription>
+            <DialogTitle>{t("accounts.add")}</DialogTitle>
+            <DialogDescription>{t("accounts.createDescription")}</DialogDescription>
           </DialogHeader>
-          <AccountForm error={actionError} saving={saving} submitLabel="Create account" onSubmit={(event) => void onSubmit(event)} />
+          <AccountForm error={actionError} saving={saving} submitLabel={t("common.create")} onSubmit={(event) => void onSubmit(event)} t={t} />
         </DialogContent>
       ) : null}
       {dialog?.type === "edit" ? (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit account</DialogTitle>
-            <DialogDescription>Update credentials, status, quota, or routing metadata.</DialogDescription>
+            <DialogTitle>{t("accounts.editTitle")}</DialogTitle>
+            <DialogDescription>{t("accounts.editDescription")}</DialogDescription>
           </DialogHeader>
-          <AccountForm account={dialog.account} error={actionError} saving={saving} submitLabel="Save changes" onSubmit={(event) => void onSubmit(event, dialog.account)} />
+          <AccountForm
+            account={dialog.account}
+            error={actionError}
+            saving={saving}
+            submitLabel={t("common.save")}
+            onSubmit={(event) => void onSubmit(event, dialog.account)}
+            t={t}
+          />
         </DialogContent>
       ) : null}
       {dialog?.type === "view" ? (
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Account details</DialogTitle>
+            <DialogTitle>{t("accounts.detailsTitle")}</DialogTitle>
             <DialogDescription>{dialog.account.username}</DialogDescription>
           </DialogHeader>
           <div className="detail-grid">
-            <DetailItem label="Region" value={dialog.account.region} />
-            <DetailItem label="Type" value={dialog.account.account_type} />
-            <DetailItem label="Status" value={dialog.account.status} />
-            <DetailItem label="Quota remaining" value={dialog.account.quota_remaining.toString()} />
-            <DetailItem label="Login URL" value={dialog.account.login_url || "-"} />
-            <DetailItem label="Notes" value={dialog.account.notes || "-"} />
+            <DetailItem label={t("accounts.region")} value={dialog.account.region} />
+            <DetailItem label={t("accounts.accountType")} value={dialog.account.account_type} />
+            <DetailItem label={t("accounts.status")} value={dialog.account.status} />
+            <DetailItem label={t("accounts.quotaRemaining")} value={dialog.account.quota_remaining.toString()} />
+            <DetailItem label={t("accounts.loginUrl")} value={dialog.account.login_url || "-"} />
+            <DetailItem label={t("accounts.notes")} value={dialog.account.notes || "-"} />
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
-                Close
+                {t("common.close")}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -283,8 +317,11 @@ function AccountDialogs({
       {dialog?.type === "delete" ? (
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Delete account</DialogTitle>
-            <DialogDescription>Delete {dialog.account.username}. This action cannot be undone.</DialogDescription>
+            <DialogTitle>{t("accounts.deleteTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("accounts.deleteDescriptionPrefix")} {dialog.account.username}
+              {t("accounts.deleteDescriptionSuffix")}
+            </DialogDescription>
           </DialogHeader>
           {actionError ? (
             <Alert role="alert" variant="destructive">
@@ -294,11 +331,11 @@ function AccountDialogs({
           <DialogFooter>
             <DialogClose asChild>
               <Button disabled={saving} type="button" variant="secondary">
-                Cancel
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button disabled={saving} onClick={() => void onDelete(dialog.account)} type="button" variant="destructive">
-              Delete account
+              {t("accounts.deleteConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -313,70 +350,72 @@ function AccountForm({
   onSubmit,
   saving,
   submitLabel,
+  t,
 }: {
   account?: Account;
   error: string | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   saving: boolean;
   submitLabel: string;
+  t: (key: TranslationKey) => string;
 }) {
   return (
     <form className="account-form" onSubmit={onSubmit}>
       <div className="form-grid form-grid--two">
         <Label className="form-row">
-          Username
+          {t("accounts.username")}
           <Input defaultValue={account?.username ?? ""} name="username" required />
         </Label>
         <Label className="form-row">
-          Password
+          {t("accounts.password")}
           <Input defaultValue={account?.password ?? ""} name="password" type="password" />
         </Label>
         <Label className="form-row">
-          Login URL
+          {t("accounts.loginUrl")}
           <Input defaultValue={account?.login_url ?? ""} name="login_url" />
         </Label>
         <Label className="form-row">
-          Region
+          {t("accounts.region")}
           <Input defaultValue={account?.region ?? ""} name="region" />
         </Label>
         <Label className="form-row">
-          Account type
+          {t("accounts.accountType")}
           <Input defaultValue={account?.account_type ?? ""} name="account_type" />
         </Label>
         <Label className="form-row">
-          Status
+          {t("accounts.status")}
           <Input defaultValue={account?.status ?? "active"} name="status" />
         </Label>
         <Label className="form-row">
-          Quota total
+          {t("accounts.quotaTotal")}
           <Input defaultValue={account?.quota_total ?? 0} min={0} name="quota_total" type="number" />
         </Label>
         <Label className="form-row">
-          Quota used
+          {t("accounts.quotaUsed")}
           <Input defaultValue={account?.quota_used ?? 0} min={0} name="quota_used" type="number" />
         </Label>
         <Label className="form-row">
-          Quota remaining
+          {t("accounts.quotaRemaining")}
           <Input defaultValue={account?.quota_remaining ?? 0} min={0} name="quota_remaining" type="number" />
         </Label>
         <Label className="form-row">
-          Max leases
+          {t("accounts.maxLeases")}
           <Input defaultValue={account?.max_concurrent_leases ?? 1} min={1} name="max_concurrent_leases" type="number" />
         </Label>
         <Label className="form-row form-row--wide">
-          Provider access token
+          {t("accounts.accessToken")}
           <Input defaultValue={account?.access_token ?? ""} name="access_token" />
         </Label>
         <Label className="form-row form-row--wide">
-          Provider refresh token
+          {t("accounts.refreshToken")}
           <Input defaultValue={account?.refresh_token ?? ""} name="refresh_token" />
         </Label>
         <Label className="form-row form-row--wide">
-          Tags
-          <Input defaultValue={(account?.tags ?? []).join(", ")} name="tags" placeholder="openai, paid" />
+          {t("accounts.tags")}
+          <Input defaultValue={(account?.tags ?? []).join(", ")} name="tags" placeholder={t("accounts.tagsPlaceholder")} />
         </Label>
         <Label className="form-row form-row--wide">
-          Notes
+          {t("accounts.notes")}
           <Input defaultValue={account?.notes ?? ""} name="notes" />
         </Label>
       </div>
@@ -387,8 +426,8 @@ function AccountForm({
       ) : null}
       <DialogFooter>
         <DialogClose asChild>
-          <Button disabled={saving} type="button" variant="secondary">
-            Cancel
+            <Button disabled={saving} type="button" variant="secondary">
+            {t("common.cancel")}
           </Button>
         </DialogClose>
         <Button disabled={saving} type="submit">

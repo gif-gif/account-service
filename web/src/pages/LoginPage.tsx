@@ -7,12 +7,14 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import type { AuthStore } from "../store/auth";
 import { useAuthStore } from "../store/auth";
+import { useI18n } from "../store/settings";
 
 type Props = {
   store?: AuthStore;
 };
 
 export function LoginPage({ store = useAuthStore }: Props) {
+  const { t } = useI18n();
   const login = store((state) => state.login);
   const loading = store((state) => state.loading);
   const error = store((state) => state.error);
@@ -29,17 +31,17 @@ export function LoginPage({ store = useAuthStore }: Props) {
       <Card className="login-card">
         <CardHeader>
           <div className="login-mark">AA</div>
-          <h1 className="ui-card__title">Account Admin</h1>
-          <CardDescription>Sign in to manage accounts, leases, API keys, and audit activity.</CardDescription>
+          <h1 className="ui-card__title">{t("app.brand")}</h1>
+          <CardDescription>{t("login.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form aria-label="Admin login" className="login-form" onSubmit={handleSubmit}>
+          <form aria-label={t("login.form")} className="login-form" onSubmit={handleSubmit}>
             <Label className="form-row">
-              Username
+              {t("login.username")}
               <Input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} />
             </Label>
             <Label className="form-row">
-              Password
+              {t("login.password")}
               <Input
                 autoComplete="current-password"
                 type="password"
@@ -49,12 +51,12 @@ export function LoginPage({ store = useAuthStore }: Props) {
             </Label>
             {error ? (
               <Alert role="alert" variant="destructive">
-                <AlertTitle>Sign in failed</AlertTitle>
+                <AlertTitle>{t("login.errorTitle")}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
             <Button disabled={loading} type="submit">
-              {loading ? "Signing in" : "Sign in"}
+              {loading ? t("login.submitting") : t("login.submit")}
             </Button>
           </form>
         </CardContent>
