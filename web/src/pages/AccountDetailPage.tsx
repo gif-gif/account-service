@@ -41,35 +41,35 @@ export function AccountDetailPage() {
         </CardHeader>
         <CardContent>
           <form className="form-grid" onSubmit={handleSubmit}>
-            <Label>
+            <Label className="form-row">
               Username
               <Input name="username" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Password
               <Input name="password" type="password" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Login URL
               <Input name="login_url" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Access token
               <Input name="access_token" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Refresh token
               <Input name="refresh_token" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Region
               <Input name="region" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Account type
               <Input name="account_type" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Quota remaining
               <Input name="quota_remaining" type="number" />
             </Label>

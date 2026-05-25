@@ -58,7 +58,9 @@ export function AdminShell({ authStore = useAuthStore }: Props) {
       </aside>
       <div className="shell-main">
         <header className="shell-topbar">
-          <Badge variant="success">Service online</Badge>
+          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="secondary">
+            Service online
+          </Badge>
           <div className="shell-user">
             <span>{user?.username}</span>
             <Button disabled={loading} onClick={() => void logout()} size="sm" type="button" variant="secondary">

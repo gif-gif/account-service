@@ -56,23 +56,23 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
           </CardHeader>
           <CardContent>
             <form className="filter-grid" onSubmit={handleSubmit}>
-              <Label>
+              <Label className="form-row">
                 Region
                 <Input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
               </Label>
-              <Label>
+              <Label className="form-row">
                 Account type
                 <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
               </Label>
-              <Label>
+              <Label className="form-row">
                 Status
                 <Input value={filters.status} onChange={(event) => setFilter("status", event.target.value)} />
               </Label>
-              <Label>
+              <Label className="form-row">
                 Tags
                 <Input value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
               </Label>
-              <Label>
+              <Label className="form-row">
                 Minimum quota
                 <Input
                   min={0}
@@ -114,7 +114,12 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                     <TableCell>{account.region}</TableCell>
                     <TableCell>{account.account_type}</TableCell>
                     <TableCell>
-                      <Badge variant={account.status === "active" ? "success" : "secondary"}>{account.status}</Badge>
+                      <Badge
+                        className={account.status === "active" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" : undefined}
+                        variant="secondary"
+                      >
+                        {account.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>{account.quota_remaining}</TableCell>
                   </TableRow>

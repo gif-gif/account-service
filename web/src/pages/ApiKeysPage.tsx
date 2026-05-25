@@ -38,11 +38,11 @@ export function ApiKeysPage() {
         </CardHeader>
         <CardContent>
           <form className="form-grid" onSubmit={handleSubmit}>
-            <Label>
+            <Label className="form-row">
               Name
               <Input name="name" />
             </Label>
-            <Label>
+            <Label className="form-row">
               Description
               <Input name="description" />
             </Label>

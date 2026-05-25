@@ -34,11 +34,11 @@ export function LoginPage({ store = useAuthStore }: Props) {
         </CardHeader>
         <CardContent>
           <form aria-label="Admin login" className="login-form" onSubmit={handleSubmit}>
-            <Label>
+            <Label className="form-row">
               Username
               <Input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} />
             </Label>
-            <Label>
+            <Label className="form-row">
               Password
               <Input
                 autoComplete="current-password"

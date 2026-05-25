@@ -49,7 +49,7 @@ export function LeasesPage() {
           </CardHeader>
           <CardContent>
             <form className="filter-grid" onSubmit={handleSubmit}>
-              <Label>
+              <Label className="form-row">
                 Lease status
                 <Input value={status} onChange={(event) => setStatus(event.target.value)} />
               </Label>
@@ -76,7 +76,7 @@ export function LeasesPage() {
                     <TableCell>{lease.lease_id}</TableCell>
                     <TableCell>{lease.account_id}</TableCell>
                     <TableCell>
-                      <Badge variant={lease.status === "active" ? "success" : lease.status === "expired" ? "warning" : "secondary"}>
+                      <Badge className={leaseStatusClassName(lease.status)} variant="secondary">
                         {lease.status}
                       </Badge>
                     </TableCell>
@@ -90,4 +90,14 @@ export function LeasesPage() {
       </div>
     </main>
   );
+}
+
+function leaseStatusClassName(status: string) {
+  if (status === "active") {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  }
+  if (status === "expired") {
+    return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+  }
+  return undefined;
 }
