@@ -4,6 +4,17 @@ The backend lives in `service/` and is deployed independently from the frontend.
 
 ## Environment
 
+Backend runtime configuration is split by deployment environment:
+
+| Environment | File | Service base URL |
+| --- | --- | --- |
+| Local | `../.env.local` | `http://localhost:8000` |
+| Development | `../.env.development` | `https://dev-api.example.com` |
+| Test | `../.env.test` | `https://account.goio.uk` |
+| Production | `../.env.production` | `https://api.example.com` |
+
+The root `.env` file is kept as a local-compatible fallback for existing commands.
+
 - `DATABASE_URL`: PostgreSQL connection string.
 - `SERVICE_BASE_URL`: Public backend base URL.
 - `SECRET_ENCRYPTION_KEY`: 32 byte credential encryption key.
@@ -15,11 +26,20 @@ The backend lives in `service/` and is deployed independently from the frontend.
 - `LOG_LEVEL`: zerolog level, defaults to `info`.
 - `HEALTH_CHECK_DATABASE_TIMEOUT_SECONDS`: Database readiness timeout.
 
+Validate all service environment files with:
+
+```bash
+service/scripts/check-env-files.sh
+```
+
 ## Commands
 
 ```bash
 cd service
 go test ./...
+set -a
+source ../.env.local
+set +a
 go run ./cmd/account-service
 ```
 
@@ -29,7 +49,15 @@ From the repository root, Docker Compose can manage PostgreSQL and the backend p
 docker compose up --build service
 ```
 
-Runtime configuration is loaded from the root `.env` file by Docker Compose. The service container must use `HTTP_HOST=0.0.0.0` so the backend listens outside the container.
+Docker Compose uses `.env.local` by default for the service container. Select another environment with `SERVICE_ENV_FILE`:
+
+```bash
+SERVICE_ENV_FILE=.env.development docker compose up --build service
+SERVICE_ENV_FILE=.env.test docker compose up --build service
+SERVICE_ENV_FILE=.env.production docker compose up --build service
+```
+
+The service container must use `HTTP_HOST=0.0.0.0` so the backend listens outside the container.
 
 For migration integration tests, set:
 
