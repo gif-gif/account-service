@@ -16,6 +16,7 @@ import (
 )
 
 type Status string
+type AccountType string
 
 const (
 	StatusActive        Status = "active"
@@ -25,6 +26,15 @@ const (
 	StatusTokenExpired  Status = "token_expired"
 	StatusRegionBlocked Status = "region_blocked"
 	StatusError         Status = "error"
+)
+
+const (
+	AccountTypeClaude     AccountType = "claude"
+	AccountTypeAWS        AccountType = "aws"
+	AccountTypeGPT        AccountType = "gpt"
+	AccountTypeKiro       AccountType = "kiro"
+	AccountTypeClaudeCode AccountType = "claudecode"
+	AccountTypeCodex      AccountType = "codex"
 )
 
 var validStatuses = map[Status]bool{
@@ -37,24 +47,33 @@ var validStatuses = map[Status]bool{
 	StatusError:         true,
 }
 
+var validAccountTypes = map[AccountType]bool{
+	AccountTypeClaude:     true,
+	AccountTypeAWS:        true,
+	AccountTypeGPT:        true,
+	AccountTypeKiro:       true,
+	AccountTypeClaudeCode: true,
+	AccountTypeCodex:      true,
+}
+
 type Account struct {
-	ID                  string    `json:"id"`
-	Username            string    `json:"username"`
-	Password            string    `json:"password,omitempty"`
-	LoginURL            string    `json:"login_url"`
-	AccessToken         string    `json:"access_token,omitempty"`
-	RefreshToken        string    `json:"refresh_token,omitempty"`
-	Region              string    `json:"region"`
-	AccountType         string    `json:"account_type"`
-	Status              Status    `json:"status"`
-	QuotaTotal          int64     `json:"quota_total"`
-	QuotaUsed           int64     `json:"quota_used"`
-	QuotaRemaining      int64     `json:"quota_remaining"`
-	MaxConcurrentLeases int       `json:"max_concurrent_leases"`
-	Tags                []string  `json:"tags"`
-	Notes               string    `json:"notes"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                  string      `json:"id"`
+	Username            string      `json:"username"`
+	Password            string      `json:"password,omitempty"`
+	LoginURL            string      `json:"login_url"`
+	AccessToken         string      `json:"access_token,omitempty"`
+	RefreshToken        string      `json:"refresh_token,omitempty"`
+	Region              string      `json:"region"`
+	AccountType         AccountType `json:"account_type"`
+	Status              Status      `json:"status"`
+	QuotaTotal          int64       `json:"quota_total"`
+	QuotaUsed           int64       `json:"quota_used"`
+	QuotaRemaining      int64       `json:"quota_remaining"`
+	MaxConcurrentLeases int         `json:"max_concurrent_leases"`
+	Tags                []string    `json:"tags"`
+	Notes               string      `json:"notes"`
+	CreatedAt           time.Time   `json:"created_at"`
+	UpdatedAt           time.Time   `json:"updated_at"`
 }
 
 type StoredAccount struct {
@@ -65,46 +84,46 @@ type StoredAccount struct {
 }
 
 type CreateAccountRequest struct {
-	Username            string   `json:"username"`
-	Password            string   `json:"password"`
-	LoginURL            string   `json:"login_url"`
-	AccessToken         string   `json:"access_token"`
-	RefreshToken        string   `json:"refresh_token"`
-	Region              string   `json:"region"`
-	AccountType         string   `json:"account_type"`
-	Status              Status   `json:"status"`
-	QuotaTotal          int64    `json:"quota_total"`
-	QuotaUsed           int64    `json:"quota_used"`
-	QuotaRemaining      int64    `json:"quota_remaining"`
-	MaxConcurrentLeases int      `json:"max_concurrent_leases"`
-	Tags                []string `json:"tags"`
-	Notes               string   `json:"notes"`
+	Username            string      `json:"username"`
+	Password            string      `json:"password"`
+	LoginURL            string      `json:"login_url"`
+	AccessToken         string      `json:"access_token"`
+	RefreshToken        string      `json:"refresh_token"`
+	Region              string      `json:"region"`
+	AccountType         AccountType `json:"account_type"`
+	Status              Status      `json:"status"`
+	QuotaTotal          int64       `json:"quota_total"`
+	QuotaUsed           int64       `json:"quota_used"`
+	QuotaRemaining      int64       `json:"quota_remaining"`
+	MaxConcurrentLeases int         `json:"max_concurrent_leases"`
+	Tags                []string    `json:"tags"`
+	Notes               string      `json:"notes"`
 }
 
 type UpdateAccountRequest struct {
-	Username            *string  `json:"username"`
-	Password            *string  `json:"password"`
-	LoginURL            *string  `json:"login_url"`
-	AccessToken         *string  `json:"access_token"`
-	RefreshToken        *string  `json:"refresh_token"`
-	Region              *string  `json:"region"`
-	AccountType         *string  `json:"account_type"`
-	Status              *Status  `json:"status"`
-	QuotaTotal          *int64   `json:"quota_total"`
-	QuotaUsed           *int64   `json:"quota_used"`
-	QuotaRemaining      *int64   `json:"quota_remaining"`
-	MaxConcurrentLeases *int     `json:"max_concurrent_leases"`
-	Tags                []string `json:"tags"`
-	Notes               *string  `json:"notes"`
+	Username            *string      `json:"username"`
+	Password            *string      `json:"password"`
+	LoginURL            *string      `json:"login_url"`
+	AccessToken         *string      `json:"access_token"`
+	RefreshToken        *string      `json:"refresh_token"`
+	Region              *string      `json:"region"`
+	AccountType         *AccountType `json:"account_type"`
+	Status              *Status      `json:"status"`
+	QuotaTotal          *int64       `json:"quota_total"`
+	QuotaUsed           *int64       `json:"quota_used"`
+	QuotaRemaining      *int64       `json:"quota_remaining"`
+	MaxConcurrentLeases *int         `json:"max_concurrent_leases"`
+	Tags                []string     `json:"tags"`
+	Notes               *string      `json:"notes"`
 }
 
 type QueryRequest struct {
-	Region            string   `json:"region"`
-	AccountType       string   `json:"account_type"`
-	Statuses          []Status `json:"statuses"`
-	Tags              []string `json:"tags"`
-	MinQuotaRemaining int64    `json:"min_quota_remaining"`
-	Limit             int      `json:"limit"`
+	Region            string      `json:"region"`
+	AccountType       AccountType `json:"account_type"`
+	Statuses          []Status    `json:"statuses"`
+	Tags              []string    `json:"tags"`
+	MinQuotaRemaining int64       `json:"min_quota_remaining"`
+	Limit             int         `json:"limit"`
 }
 
 type MemoryRepository struct {
@@ -141,6 +160,9 @@ func (service *Service) Create(request CreateAccountRequest) (Account, error) {
 	}
 	if !validStatuses[status] {
 		return Account{}, errors.New("invalid account status")
+	}
+	if !validAccountTypes[request.AccountType] {
+		return Account{}, errors.New("invalid account type")
 	}
 	if request.MaxConcurrentLeases <= 0 {
 		request.MaxConcurrentLeases = 1
@@ -239,6 +261,10 @@ func (service *Service) Update(id string, request UpdateAccountRequest) (Account
 		account.Region = *request.Region
 	}
 	if request.AccountType != nil {
+		if !validAccountTypes[*request.AccountType] {
+			service.repo.mu.Unlock()
+			return Account{}, errors.New("invalid account type")
+		}
 		account.AccountType = *request.AccountType
 	}
 	if request.Status != nil {
@@ -284,6 +310,10 @@ func (service *Service) Delete(id string) error {
 }
 
 func (service *Service) Query(request QueryRequest) ([]Account, error) {
+	if request.AccountType != "" && !validAccountTypes[request.AccountType] {
+		return nil, errors.New("invalid account type")
+	}
+
 	service.repo.mu.Lock()
 	stored := make([]StoredAccount, 0, len(service.repo.accounts))
 	for _, account := range service.repo.accounts {

@@ -11,6 +11,7 @@ import { Label } from "../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
 import type { Account, AccountsStore } from "../store/accounts";
+import { accountTypes } from "../store/accounts";
 import { useAccountsStore } from "../store/accounts";
 import { useI18n, type TranslationKey } from "../store/settings";
 
@@ -128,7 +129,14 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
               </Label>
               <Label className="toolbar-field">
                 {t("accounts.type")}
-                <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
+                <select className="ui-select" value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)}>
+                  <option value="">{t("accounts.typeAll")}</option>
+                  {accountTypes.map((accountType) => (
+                    <option key={accountType} value={accountType}>
+                      {accountType}
+                    </option>
+                  ))}
+                </select>
               </Label>
               <Label className="toolbar-field">
                 {t("accounts.status")}
@@ -528,7 +536,13 @@ function AccountForm({
         </Label>
         <Label className="form-row">
           {t("accounts.accountType")}
-          <Input defaultValue={account?.account_type ?? ""} name="account_type" />
+          <select className="ui-select" defaultValue={account?.account_type ?? accountTypes[0]} name="account_type">
+            {accountTypes.map((accountType) => (
+              <option key={accountType} value={accountType}>
+                {accountType}
+              </option>
+            ))}
+          </select>
         </Label>
         <Label className="form-row">
           {t("accounts.status")}

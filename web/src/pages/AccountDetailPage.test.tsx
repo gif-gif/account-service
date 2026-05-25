@@ -24,7 +24,7 @@ describe("AccountDetailPage", () => {
     await userEvent.type(screen.getByLabelText("Access token"), "access-token");
     await userEvent.type(screen.getByLabelText("Refresh token"), "refresh-token");
     await userEvent.type(screen.getByLabelText("Region"), "us");
-    await userEvent.type(screen.getByLabelText("Account type"), "pro");
+    await userEvent.selectOptions(screen.getByLabelText("Account type"), "codex");
     await userEvent.type(screen.getByLabelText("Quota remaining"), "900");
     await userEvent.click(screen.getByRole("button", { name: "Save account" }));
 
@@ -35,6 +35,7 @@ describe("AccountDetailPage", () => {
         method: "POST",
         credentials: "omit",
         headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+        body: expect.stringContaining('"account_type":"codex"'),
       }),
     );
   });

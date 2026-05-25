@@ -24,7 +24,7 @@ func TestAcquireSelectsHighestQuotaActiveAccount(t *testing.T) {
 	service := NewService(accountService, 15*time.Minute, 2*time.Hour, audit.NewMemoryWriter())
 	lease, err := service.Acquire(AcquireRequest{
 		Region:            "us",
-		AccountType:       "pro",
+		AccountType:       string(accounts.AccountTypeCodex),
 		Tags:              []string{"openai"},
 		MinQuotaRemaining: 1,
 		TTLSeconds:        900,
@@ -53,7 +53,7 @@ func TestAcquireRespectsMaxConcurrentLeases(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := service.Acquire(AcquireRequest{Region: "us", AccountType: "pro", TTLSeconds: 900, CallerID: "caller-id"})
+			_, err := service.Acquire(AcquireRequest{Region: "us", AccountType: string(accounts.AccountTypeCodex), TTLSeconds: 900, CallerID: "caller-id"})
 			results <- err
 		}()
 	}
@@ -79,7 +79,7 @@ func TestReleaseAndCleanupExpiredLease(t *testing.T) {
 	createAccount(t, accountService, "one@example.com", 900, accounts.StatusActive, 1)
 	service := NewService(accountService, 15*time.Minute, 2*time.Hour, audit.NewMemoryWriter())
 
-	lease, err := service.Acquire(AcquireRequest{Region: "us", AccountType: "pro", TTLSeconds: 900, CallerID: "caller-id"})
+	lease, err := service.Acquire(AcquireRequest{Region: "us", AccountType: string(accounts.AccountTypeCodex), TTLSeconds: 900, CallerID: "caller-id"})
 	if err != nil {
 		t.Fatalf("Acquire() error = %v", err)
 	}
@@ -90,7 +90,7 @@ func TestReleaseAndCleanupExpiredLease(t *testing.T) {
 		t.Fatal("expected second release to fail")
 	}
 
-	expiring, err := service.Acquire(AcquireRequest{Region: "us", AccountType: "pro", TTLSeconds: 1, CallerID: "caller-id"})
+	expiring, err := service.Acquire(AcquireRequest{Region: "us", AccountType: string(accounts.AccountTypeCodex), TTLSeconds: 1, CallerID: "caller-id"})
 	if err != nil {
 		t.Fatalf("Acquire(expiring) error = %v", err)
 	}
@@ -109,7 +109,7 @@ func TestAcquireRejectsTTLAboveMax(t *testing.T) {
 	createAccount(t, accountService, "one@example.com", 900, accounts.StatusActive, 1)
 	service := NewService(accountService, 15*time.Minute, 2*time.Hour, audit.NewMemoryWriter())
 
-	_, err := service.Acquire(AcquireRequest{Region: "us", AccountType: "pro", TTLSeconds: int((3 * time.Hour).Seconds()), CallerID: "caller-id"})
+	_, err := service.Acquire(AcquireRequest{Region: "us", AccountType: string(accounts.AccountTypeCodex), TTLSeconds: int((3 * time.Hour).Seconds()), CallerID: "caller-id"})
 	if err == nil {
 		t.Fatal("expected max ttl error")
 	}
@@ -122,7 +122,7 @@ func TestHandlersExposeLeaseAPI(t *testing.T) {
 	app := fiber.New()
 	RegisterRoutes(app, service)
 
-	acquireResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/acquire", `{"region":"us","account_type":"pro","ttl_seconds":900,"caller_id":"caller-id"}`))
+	acquireResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/acquire", `{"region":"us","account_type":"codex","ttl_seconds":900,"caller_id":"caller-id"}`))
 	if err != nil {
 		t.Fatalf("acquire app.Test() error = %v", err)
 	}
@@ -169,7 +169,7 @@ func createAccount(t *testing.T, service *accounts.Service, username string, quo
 		AccessToken:         "access-token",
 		RefreshToken:        "refresh-token",
 		Region:              "us",
-		AccountType:         "pro",
+		AccountType:         accounts.AccountTypeCodex,
 		Status:              status,
 		QuotaTotal:          1000,
 		QuotaRemaining:      quota,

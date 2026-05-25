@@ -238,6 +238,15 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/admin/logout' \
 - `region_blocked`
 - `error`
 
+账号类型可选值：
+
+- `claude`
+- `aws`
+- `gpt`
+- `kiro`
+- `claudecode`
+- `codex`
+
 账号对象字段：
 
 ```json
@@ -249,7 +258,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/admin/logout' \
   "access_token": "provider-access-token",
   "refresh_token": "provider-refresh-token",
   "region": "us",
-  "account_type": "pro",
+  "account_type": "codex",
   "status": "active",
   "quota_total": 1000,
   "quota_used": 100,
@@ -281,7 +290,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts' \
     "access_token": "provider-access-token",
     "refresh_token": "provider-refresh-token",
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "status": "active",
     "quota_total": 1000,
     "quota_used": 100,
@@ -304,7 +313,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts' \
     "access_token": "provider-access-token",
     "refresh_token": "provider-refresh-token",
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "status": "active",
     "quota_total": 1000,
     "quota_used": 100,
@@ -327,7 +336,7 @@ POST /api/v1/accounts/query
 请求体字段：
 
 - `region`：按区域过滤，可为空
-- `account_type`：按账号类型过滤，可为空
+- `account_type`：按账号类型过滤，可为空；可选值为 `claude`、`aws`、`gpt`、`kiro`、`claudecode`、`codex`
 - `statuses`：按状态列表过滤，可为空
 - `tags`：要求账号包含所有标签，可为空
 - `min_quota_remaining`：最小剩余额度
@@ -341,7 +350,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts/query' 
   --header "Authorization: Bearer ${ACCESS_TOKEN}" \
   --data-raw '{
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "statuses": ["active"],
     "tags": ["openai"],
     "min_quota_remaining": 1,
@@ -358,7 +367,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts/query' 
       "id": "account-id",
       "username": "user@example.com",
       "region": "us",
-      "account_type": "pro",
+      "account_type": "codex",
       "status": "active",
       "quota_remaining": 900,
       "tags": ["openai"]
@@ -390,7 +399,7 @@ curl -i "http://127.0.0.1:8000/api/v1/accounts/${ACCOUNT_ID}" \
     "id": "account-id",
     "username": "user@example.com",
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "status": "active",
     "CreatedAt": "2026-05-25T11:00:00Z",
     "UpdatedAt": "2026-05-25T11:00:00Z"
@@ -502,7 +511,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts/acquire
   --header "Authorization: Bearer ${ACCESS_TOKEN}" \
   --data-raw '{
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "tags": ["openai"],
     "min_quota_remaining": 1,
     "ttl_seconds": 900,
@@ -524,7 +533,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/accounts/acquire
   "expires_at": "2026-05-25T11:15:00Z",
   "request_filters": {
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "ttl_seconds": 900,
     "caller_id": "caller-id"
   },

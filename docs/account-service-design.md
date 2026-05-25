@@ -131,7 +131,7 @@
 - `access_token_encrypted`：加密后的 accessToken。
 - `refresh_token_encrypted`：加密后的 refreshToken。
 - `region`：地区，例如 `us`、`eu`、`cn`，也允许业务自定义。
-- `account_type`：账号类型，例如 `free`、`pro`、`enterprise` 或业务自定义类型。
+- `account_type`：账号类型，枚举值为 `claude`、`aws`、`gpt`、`kiro`、`claudecode`、`codex`。
 - `status`：账号状态。
 - `quota_total`：总额度。
 - `quota_used`：已用额度。
@@ -258,7 +258,7 @@
 ```json
 {
   "region": "us",
-  "account_type": "pro",
+  "account_type": "codex",
   "statuses": ["active"],
   "tags": ["openai"],
   "min_quota_remaining": 1,
@@ -277,7 +277,7 @@
 ```json
 {
   "region": "us",
-  "account_type": "pro",
+  "account_type": "codex",
   "tags": ["openai"],
   "min_quota_remaining": 1,
   "ttl_seconds": 900,
@@ -299,7 +299,7 @@
     "access_token": "access-token",
     "refresh_token": "refresh-token",
     "region": "us",
-    "account_type": "pro",
+    "account_type": "codex",
     "status": "active",
     "quota_total": 1000,
     "quota_used": 100,

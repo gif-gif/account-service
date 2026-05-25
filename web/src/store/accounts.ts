@@ -2,6 +2,10 @@ import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { APIError, apiFetch } from "../lib/api";
 
+export const accountTypes = ["claude", "aws", "gpt", "kiro", "claudecode", "codex"] as const;
+
+export type AccountType = (typeof accountTypes)[number];
+
 export type Account = {
   id: string;
   username: string;
@@ -10,7 +14,7 @@ export type Account = {
   access_token?: string;
   refresh_token?: string;
   region: string;
-  account_type: string;
+  account_type: AccountType;
   status: string;
   quota_total?: number;
   quota_used?: number;

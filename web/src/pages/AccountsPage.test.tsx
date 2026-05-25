@@ -24,7 +24,7 @@ describe("AccountsPage", () => {
               username: "user@example.com",
               password: "plain-password",
               region: "us",
-              account_type: "pro",
+              account_type: "codex",
               status: "active",
               login_url: "https://example.com/login",
               access_token: "provider-access",
@@ -55,7 +55,7 @@ describe("AccountsPage", () => {
     const filters = screen.getByRole("group", { name: "筛选条件" });
     expect(within(filters).getByText("筛选条件")).toBeInTheDocument();
     await userEvent.type(within(filters).getByLabelText("区域"), "us");
-    await userEvent.type(within(filters).getByLabelText("类型"), "pro");
+    await userEvent.selectOptions(within(filters).getByLabelText("类型"), "codex");
     await userEvent.selectOptions(within(filters).getByLabelText("状态"), "active");
     await userEvent.click(screen.getByRole("button", { name: "筛选" }));
 
@@ -103,7 +103,7 @@ describe("AccountsPage", () => {
                 access_token: "provider-access",
                 refresh_token: "provider-refresh",
                 region: "us",
-                account_type: "pro",
+                account_type: "codex",
                 status: "active",
                 quota_remaining: 900,
                 quota_total: 1000,
@@ -132,7 +132,7 @@ describe("AccountsPage", () => {
                 access_token: "provider-access",
                 refresh_token: "provider-refresh",
                 region: "us",
-                account_type: "pro",
+                account_type: "codex",
                 status: "active",
                 quota_remaining: 900,
                 quota_total: 1000,
@@ -159,7 +159,7 @@ describe("AccountsPage", () => {
                 access_token: "provider-access",
                 refresh_token: "provider-refresh",
                 region: "us",
-                account_type: "pro",
+                account_type: "codex",
                 status: "active",
                 quota_remaining: 700,
                 quota_total: 1000,
@@ -194,7 +194,7 @@ describe("AccountsPage", () => {
     await userEvent.type(within(createDialog).getByLabelText("Access Token"), "provider-access");
     await userEvent.type(within(createDialog).getByLabelText("Refresh Token"), "provider-refresh");
     await userEvent.type(within(createDialog).getByLabelText("区域"), "eu");
-    await userEvent.type(within(createDialog).getByLabelText("账号类型"), "team");
+    await userEvent.selectOptions(within(createDialog).getByLabelText("账号类型"), "kiro");
     await userEvent.selectOptions(within(createDialog).getByLabelText("状态"), "login_failed");
     await userEvent.type(within(createDialog).getByLabelText("剩余额度"), "500");
     await userEvent.click(within(createDialog).getByRole("button", { name: "创建" }));
@@ -204,6 +204,13 @@ describe("AccountsPage", () => {
       "https://api.example.com/api/v1/accounts",
       expect.objectContaining({
         body: expect.stringContaining('"status":"login_failed"'),
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts",
+      expect.objectContaining({
+        body: expect.stringContaining('"account_type":"kiro"'),
         method: "POST",
       }),
     );

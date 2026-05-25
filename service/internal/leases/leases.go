@@ -79,7 +79,7 @@ func (service *Service) Acquire(request AcquireRequest) (Lease, error) {
 
 	candidates, err := service.accounts.Query(accounts.QueryRequest{
 		Region:            request.Region,
-		AccountType:       request.AccountType,
+		AccountType:       accounts.AccountType(request.AccountType),
 		Statuses:          []accounts.Status{accounts.StatusActive},
 		Tags:              request.Tags,
 		MinQuotaRemaining: maxInt64(request.MinQuotaRemaining, 1),

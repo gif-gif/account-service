@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { apiFetch } from "../lib/api";
+import { accountTypes } from "../store/accounts";
 
 export function AccountDetailPage() {
   const [savedID, setSavedID] = useState<string | null>(null);
@@ -67,7 +68,13 @@ export function AccountDetailPage() {
             </Label>
             <Label className="form-row">
               Account type
-              <Input name="account_type" />
+              <select className="ui-select" name="account_type" defaultValue={accountTypes[0]}>
+                {accountTypes.map((accountType) => (
+                  <option key={accountType} value={accountType}>
+                    {accountType}
+                  </option>
+                ))}
+              </select>
             </Label>
             <Label className="form-row">
               Quota remaining

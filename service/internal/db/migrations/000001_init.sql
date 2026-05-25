@@ -8,7 +8,7 @@ create table if not exists accounts (
     access_token_encrypted text not null,
     refresh_token_encrypted text not null,
     region text not null,
-    account_type text not null,
+    account_type text not null check (account_type in ('claude', 'aws', 'gpt', 'kiro', 'claudecode', 'codex')),
     status text not null check (status in ('active', 'disabled', 'exhausted', 'login_failed', 'token_expired', 'region_blocked', 'error')),
     quota_total bigint not null default 0 check (quota_total >= 0),
     quota_used bigint not null default 0 check (quota_used >= 0),

@@ -72,6 +72,19 @@ func TestInitMigrationDefinesDefaultAdminSeed(t *testing.T) {
 	}
 }
 
+func TestInitMigrationConstrainsAccountType(t *testing.T) {
+	sqlBytes, err := migrationFiles.ReadFile("migrations/000001_init.sql")
+	if err != nil {
+		t.Fatalf("read init migration: %v", err)
+	}
+	sql := string(sqlBytes)
+
+	requiredFragment := "account_type text not null check (account_type in ('claude', 'aws', 'gpt', 'kiro', 'claudecode', 'codex'))"
+	if !strings.Contains(sql, requiredFragment) {
+		t.Fatalf("init migration missing account type enum constraint")
+	}
+}
+
 func TestInitMigrationSeedsDefaultAdminUser(t *testing.T) {
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {

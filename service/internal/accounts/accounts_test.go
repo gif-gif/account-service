@@ -24,7 +24,7 @@ func TestRepositoryCreateGetUpdateAndQuery(t *testing.T) {
 		AccessToken:         "access-token",
 		RefreshToken:        "refresh-token",
 		Region:              "us",
-		AccountType:         "pro",
+		AccountType:         AccountTypeCodex,
 		Status:              StatusActive,
 		QuotaTotal:          1000,
 		QuotaUsed:           100,
@@ -65,7 +65,7 @@ func TestRepositoryCreateGetUpdateAndQuery(t *testing.T) {
 
 	results, err := svc.Query(QueryRequest{
 		Region:            "us",
-		AccountType:       "pro",
+		AccountType:       AccountTypeCodex,
 		Statuses:          []Status{StatusTokenExpired},
 		Tags:              []string{"openai"},
 		MinQuotaRemaining: 1,
@@ -90,12 +90,32 @@ func TestRejectsInvalidStatus(t *testing.T) {
 		AccessToken:         "access-token",
 		RefreshToken:        "refresh-token",
 		Region:              "us",
-		AccountType:         "pro",
+		AccountType:         AccountTypeCodex,
 		Status:              "bad-status",
 		MaxConcurrentLeases: 1,
 	})
 	if err == nil {
 		t.Fatal("expected invalid status error")
+	}
+}
+
+func TestRejectsInvalidAccountType(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+
+	_, err := svc.Create(CreateAccountRequest{
+		Username:            "user@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         "pro",
+		Status:              StatusActive,
+		MaxConcurrentLeases: 1,
+	})
+	if err == nil {
+		t.Fatal("expected invalid account type error")
 	}
 }
 
@@ -113,7 +133,7 @@ func TestHandlersExposeAccountAPI(t *testing.T) {
 		"access_token":"access-token",
 		"refresh_token":"refresh-token",
 		"region":"us",
-		"account_type":"pro",
+		"account_type":"codex",
 		"status":"active",
 		"quota_total":1000,
 		"quota_used":100,
@@ -140,7 +160,7 @@ func TestHandlersExposeAccountAPI(t *testing.T) {
 		t.Fatalf("get status = %d, want %d", getResp.StatusCode, http.StatusOK)
 	}
 
-	queryResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/query", `{"region":"us","account_type":"pro","statuses":["active"],"tags":["openai"],"min_quota_remaining":1,"limit":10}`))
+	queryResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/query", `{"region":"us","account_type":"codex","statuses":["active"],"tags":["openai"],"min_quota_remaining":1,"limit":10}`))
 	if err != nil {
 		t.Fatalf("query app.Test() error = %v", err)
 	}
