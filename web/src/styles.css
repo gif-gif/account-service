@@ -83,6 +83,10 @@ input {
   font: inherit;
 }
 
+select {
+  font: inherit;
+}
+
 button {
   cursor: pointer;
 }
@@ -409,7 +413,18 @@ input {
   padding: 0 12px;
 }
 
-.ui-input:focus {
+.ui-select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 0 36px 0 12px;
+}
+
+.ui-input:focus,
+.ui-select:focus {
   border-color: var(--ring);
   box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.16);
 }
@@ -537,12 +552,29 @@ input {
   padding-block: 0;
 }
 
-.admin-card-header {
+.admin-card-header,
+.filter-panel__header {
   align-items: end;
   gap: 12px;
   border-bottom: 1px solid var(--border);
   background: #fbfcfe;
   padding-bottom: 14px;
+}
+
+.filter-panel {
+  gap: 0;
+  padding-block: 0;
+}
+
+.account-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(220px, 1.5fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.filter-submit {
+  align-self: end;
 }
 
 .admin-toolbar {
@@ -589,6 +621,20 @@ input {
 }
 
 .numeric-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.wide-cell {
+  min-width: 180px;
+  max-width: 280px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.date-cell {
+  min-width: 170px;
+  color: var(--muted);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -645,6 +691,18 @@ input {
 .detail-item strong {
   overflow-wrap: anywhere;
   font-size: 14px;
+}
+
+.secret-value {
+  display: block;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #e2e8f0;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 [data-slot="table-container"] {
@@ -713,6 +771,10 @@ input {
     grid-template-columns: 1fr;
   }
 
+  .account-filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .toolbar-field,
   .toolbar-field--compact,
   .tag-filter {
@@ -753,5 +815,9 @@ input {
 
   .settings-label {
     display: none;
+  }
+
+  .account-filter-grid {
+    grid-template-columns: 1fr;
   }
 }

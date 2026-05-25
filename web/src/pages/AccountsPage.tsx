@@ -4,7 +4,7 @@ import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -23,7 +23,10 @@ type DialogState =
   | { type: "view"; account: Account }
   | { type: "edit"; account: Account }
   | { type: "delete"; account: Account }
+  | { type: "secret"; title: string; value: string }
   | null;
+
+const accountStatuses = ["active", "disabled", "exhausted", "login_failed", "token_expired", "region_blocked", "error"] as const;
 
 export function AccountsPage({ store = useAccountsStore }: Props) {
   const { t } = useI18n();
@@ -110,44 +113,57 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         <MetricCard label={t("accounts.errorStates")} value={errorStates.toString()} />
       </div>
       <div className="content-stack">
+        <Card className="filter-panel" role="group" aria-label={t("accounts.filterTitle")}>
+          <CardHeader className="filter-panel__header">
+            <CardTitle>{t("accounts.filterTitle")}</CardTitle>
+            <CardDescription>{t("accounts.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="account-filter-grid" onSubmit={handleSubmit}>
+              <Label className="toolbar-field">
+                {t("accounts.region")}
+                <Input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
+              </Label>
+              <Label className="toolbar-field">
+                {t("accounts.type")}
+                <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
+              </Label>
+              <Label className="toolbar-field">
+                {t("accounts.status")}
+                <select className="ui-select" value={filters.status} onChange={(event) => setFilter("status", event.target.value)}>
+                  <option value="">{t("accounts.statusAll")}</option>
+                  {accountStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </Label>
+              <Label className="toolbar-field toolbar-field--compact">
+                {t("accounts.minQuota")}
+                <Input
+                  min={0}
+                  type="number"
+                  value={filters.minQuotaRemaining}
+                  onChange={(event) => setFilter("minQuotaRemaining", Number(event.target.value || 0))}
+                />
+              </Label>
+              <Label className="tag-filter">
+                {t("accounts.tags")}
+                <Input placeholder={t("accounts.tagsPlaceholder")} value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
+              </Label>
+              <Button className="filter-submit" type="submit" variant="secondary">
+                <Search />
+                {t("accounts.applyFilters")}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
         <Card className="admin-panel">
           <CardHeader className="admin-card-header">
             <CardTitle>{t("accounts.inventory")}</CardTitle>
-            <CardAction>
-              <form className="admin-toolbar" onSubmit={handleSubmit}>
-                <Label className="toolbar-field">
-                  {t("accounts.region")}
-                  <Input value={filters.region} onChange={(event) => setFilter("region", event.target.value)} />
-                </Label>
-                <Label className="toolbar-field">
-                  {t("accounts.type")}
-                  <Input value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)} />
-                </Label>
-                <Label className="toolbar-field">
-                  {t("accounts.status")}
-                  <Input value={filters.status} onChange={(event) => setFilter("status", event.target.value)} />
-                </Label>
-                <Label className="toolbar-field toolbar-field--compact">
-                  {t("accounts.minQuota")}
-                  <Input
-                    min={0}
-                    type="number"
-                    value={filters.minQuotaRemaining}
-                    onChange={(event) => setFilter("minQuotaRemaining", Number(event.target.value || 0))}
-                  />
-                </Label>
-                <Button type="submit" variant="secondary">
-                  <Search />
-                  {t("accounts.applyFilters")}
-                </Button>
-              </form>
-            </CardAction>
           </CardHeader>
           <CardContent>
-            <Label className="tag-filter">
-              {t("accounts.tags")}
-              <Input placeholder={t("accounts.tagsPlaceholder")} value={filters.tags} onChange={(event) => setFilter("tags", event.target.value)} />
-            </Label>
             {loading ? <p className="empty-state">{t("accounts.loading")}</p> : null}
             {error ? (
               <Alert role="alert" variant="destructive">
@@ -158,12 +174,23 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("accounts.account")}</TableHead>
+                  <TableHead>{t("accounts.id")}</TableHead>
+                  <TableHead>{t("accounts.username")}</TableHead>
+                  <TableHead>{t("accounts.password")}</TableHead>
+                  <TableHead>{t("accounts.loginUrl")}</TableHead>
+                  <TableHead>{t("accounts.accessToken")}</TableHead>
+                  <TableHead>{t("accounts.refreshToken")}</TableHead>
                   <TableHead>{t("accounts.region")}</TableHead>
                   <TableHead>{t("accounts.accountType")}</TableHead>
                   <TableHead>{t("accounts.status")}</TableHead>
-                  <TableHead>{t("accounts.quota")}</TableHead>
+                  <TableHead>{t("accounts.quotaTotal")}</TableHead>
+                  <TableHead>{t("accounts.quotaUsed")}</TableHead>
+                  <TableHead>{t("accounts.quotaRemaining")}</TableHead>
+                  <TableHead>{t("accounts.maxLeases")}</TableHead>
                   <TableHead>{t("accounts.tags")}</TableHead>
+                  <TableHead>{t("accounts.notes")}</TableHead>
+                  <TableHead>{t("accounts.createdAt")}</TableHead>
+                  <TableHead>{t("accounts.updatedAt")}</TableHead>
                   <TableHead className="actions-col">{t("common.edit")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -171,17 +198,28 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                 {accounts.map((account) => (
                   <TableRow key={account.id}>
                     <TableCell>
-                      <div className="account-cell">
-                        <span className="account-name">{account.username}</span>
-                        <span className="account-subtext">{account.login_url || t("accounts.noLoginUrl")}</span>
-                      </div>
+                      <code className="metadata-code">{account.id}</code>
+                    </TableCell>
+                    <TableCell className="account-name">{account.username}</TableCell>
+                    <TableCell>
+                      <SecretButton label={t("accounts.password")} value={account.password} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                    </TableCell>
+                    <TableCell className="wide-cell">{account.login_url || t("accounts.noLoginUrl")}</TableCell>
+                    <TableCell>
+                      <SecretButton label={t("accounts.accessToken")} value={account.access_token} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                    </TableCell>
+                    <TableCell>
+                      <SecretButton label={t("accounts.refreshToken")} value={account.refresh_token} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
                     </TableCell>
                     <TableCell>{account.region || "-"}</TableCell>
                     <TableCell>{account.account_type || "-"}</TableCell>
                     <TableCell>
                       <StatusBadge status={account.status} />
                     </TableCell>
+                    <TableCell className="numeric-cell">{account.quota_total ?? 0}</TableCell>
+                    <TableCell className="numeric-cell">{account.quota_used ?? 0}</TableCell>
                     <TableCell className="numeric-cell">{account.quota_remaining}</TableCell>
+                    <TableCell className="numeric-cell">{account.max_concurrent_leases ?? 1}</TableCell>
                     <TableCell>
                       <div className="tag-list">
                         {(account.tags ?? []).slice(0, 2).map((tag) => (
@@ -192,6 +230,9 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                         {(account.tags ?? []).length === 0 ? <span className="muted-text">-</span> : null}
                       </div>
                     </TableCell>
+                    <TableCell className="wide-cell">{account.notes || "-"}</TableCell>
+                    <TableCell className="date-cell">{formatDate(account.created_at)}</TableCell>
+                    <TableCell className="date-cell">{formatDate(account.updated_at)}</TableCell>
                     <TableCell>
                       <div className="row-actions">
                         <Button
@@ -340,7 +381,49 @@ function AccountDialogs({
           </DialogFooter>
         </DialogContent>
       ) : null}
+      {dialog?.type === "secret" ? (
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{dialog.title}</DialogTitle>
+          </DialogHeader>
+          <code className="secret-value">{dialog.value || "-"}</code>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                {t("common.close")}
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
     </Dialog>
+  );
+}
+
+function SecretButton({
+  account,
+  label,
+  onReveal,
+  t,
+  value,
+}: {
+  account: Account;
+  label: string;
+  onReveal: (title: string, value: string) => void;
+  t: (key: TranslationKey) => string;
+  value?: string;
+}) {
+  return (
+    <Button
+      aria-label={`${t("common.reveal")} ${label} ${account.username}`}
+      onClick={() => onReveal(label, value ?? "")}
+      size="sm"
+      type="button"
+      variant="secondary"
+    >
+      <Eye />
+      ******
+    </Button>
   );
 }
 
@@ -455,6 +538,17 @@ function StatusBadge({ status }: { status: string }) {
     return <Badge variant="destructive">{status}</Badge>;
   }
   return <Badge variant="secondary">{status || "-"}</Badge>;
+}
+
+function formatDate(value?: string) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }
 
 function accountPayload(form: FormData) {

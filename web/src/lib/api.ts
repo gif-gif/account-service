@@ -42,7 +42,7 @@ async function request(path: string, init: RequestInit, accessToken?: string): P
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  const body = await parseJSON<unknown>(response);
+  const body = await parseResponseBody(response);
   if (!response.ok) {
     const errorBody = body as APIErrorBody;
     throw new APIError(
@@ -75,7 +75,7 @@ async function refreshTokens(): Promise<AuthTokens | null> {
     notifyAuthExpired();
     return null;
   }
-  const body = (await parseJSON<unknown>(response)) as { accessToken?: string; refreshToken?: string };
+  const body = (await parseResponseBody(response)) as { accessToken?: string; refreshToken?: string };
   if (!body.accessToken || !body.refreshToken) {
     clearAuthTokens();
     notifyAuthExpired();
@@ -86,10 +86,23 @@ async function refreshTokens(): Promise<AuthTokens | null> {
   return refreshed;
 }
 
-async function parseJSON<T>(response: Response): Promise<T> {
+async function parseResponseBody(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
-    return {} as T;
+    return {};
   }
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    if (response.ok) {
+      throw error;
+    }
+    return {
+      error: {
+        code: "request_failed",
+        message: text || response.statusText || "Request failed",
+        request_id: response.headers.get("X-Request-ID") ?? "",
+      },
+    };
+  }
 }

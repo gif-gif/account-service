@@ -22,11 +22,21 @@ describe("AccountsPage", () => {
             {
               id: "account-id",
               username: "user@example.com",
+              password: "plain-password",
               region: "us",
               account_type: "pro",
               status: "active",
+              login_url: "https://example.com/login",
+              access_token: "provider-access",
+              refresh_token: "provider-refresh",
+              quota_total: 1000,
+              quota_used: 100,
               quota_remaining: 900,
+              max_concurrent_leases: 2,
               tags: ["openai"],
+              notes: "primary",
+              created_at: "2026-05-25T08:00:00Z",
+              updated_at: "2026-05-25T09:00:00Z",
             },
           ],
         }),
@@ -40,10 +50,13 @@ describe("AccountsPage", () => {
 
     expect(screen.getByRole("heading", { name: "账号管理" })).toBeInTheDocument();
     expect(screen.getByText("活跃账号")).toBeInTheDocument();
-    expect(screen.getByText("剩余额度")).toBeInTheDocument();
+    expect(screen.getAllByText("剩余额度").length).toBeGreaterThan(0);
     await screen.findByText("user@example.com");
-    await userEvent.type(screen.getByLabelText("区域"), "us");
-    await userEvent.type(screen.getByLabelText("类型"), "pro");
+    const filters = screen.getByRole("group", { name: "筛选条件" });
+    expect(within(filters).getByText("筛选条件")).toBeInTheDocument();
+    await userEvent.type(within(filters).getByLabelText("区域"), "us");
+    await userEvent.type(within(filters).getByLabelText("类型"), "pro");
+    await userEvent.selectOptions(within(filters).getByLabelText("状态"), "active");
     await userEvent.click(screen.getByRole("button", { name: "筛选" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -53,8 +66,21 @@ describe("AccountsPage", () => {
         method: "POST",
         credentials: "omit",
         headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+        body: expect.stringContaining('"statuses":["active"]'),
       }),
     );
+    expect(screen.getByRole("columnheader", { name: "ID" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "登录地址" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Access Token" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Refresh Token" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "总额度" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "已用额度" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "最大租约数" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "创建时间" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
+    expect(screen.queryByText("provider-access")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "查看 Access Token user@example.com" }));
+    expect(screen.getByRole("dialog", { name: "Access Token" })).toHaveTextContent("provider-access");
   });
 
   it("opens create, view, edit, and delete account dialogs from the table", async () => {
@@ -68,7 +94,10 @@ describe("AccountsPage", () => {
               {
                 id: "account-id",
                 username: "user@example.com",
+                password: "plain-password",
                 login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
                 region: "us",
                 account_type: "pro",
                 status: "active",
@@ -92,7 +121,10 @@ describe("AccountsPage", () => {
               {
                 id: "account-id",
                 username: "user@example.com",
+                password: "plain-password",
                 login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
                 region: "us",
                 account_type: "pro",
                 status: "active",
@@ -116,7 +148,10 @@ describe("AccountsPage", () => {
               {
                 id: "account-id",
                 username: "user@example.com",
+                password: "plain-password",
                 login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
                 region: "us",
                 account_type: "pro",
                 status: "active",

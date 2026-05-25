@@ -38,23 +38,23 @@ var validStatuses = map[Status]bool{
 }
 
 type Account struct {
-	ID                  string   `json:"id"`
-	Username            string   `json:"username"`
-	Password            string   `json:"password,omitempty"`
-	LoginURL            string   `json:"login_url"`
-	AccessToken         string   `json:"access_token,omitempty"`
-	RefreshToken        string   `json:"refresh_token,omitempty"`
-	Region              string   `json:"region"`
-	AccountType         string   `json:"account_type"`
-	Status              Status   `json:"status"`
-	QuotaTotal          int64    `json:"quota_total"`
-	QuotaUsed           int64    `json:"quota_used"`
-	QuotaRemaining      int64    `json:"quota_remaining"`
-	MaxConcurrentLeases int      `json:"max_concurrent_leases"`
-	Tags                []string `json:"tags"`
-	Notes               string   `json:"notes"`
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                  string    `json:"id"`
+	Username            string    `json:"username"`
+	Password            string    `json:"password,omitempty"`
+	LoginURL            string    `json:"login_url"`
+	AccessToken         string    `json:"access_token,omitempty"`
+	RefreshToken        string    `json:"refresh_token,omitempty"`
+	Region              string    `json:"region"`
+	AccountType         string    `json:"account_type"`
+	Status              Status    `json:"status"`
+	QuotaTotal          int64     `json:"quota_total"`
+	QuotaUsed           int64     `json:"quota_used"`
+	QuotaRemaining      int64     `json:"quota_remaining"`
+	MaxConcurrentLeases int       `json:"max_concurrent_leases"`
+	Tags                []string  `json:"tags"`
+	Notes               string    `json:"notes"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type StoredAccount struct {

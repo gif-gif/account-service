@@ -73,6 +73,19 @@ func TestNewProtectsManagedRoutesWithAdminAccessToken(t *testing.T) {
 	if authorizedResp.StatusCode != http.StatusOK {
 		t.Fatalf("authorized status = %d, want %d", authorizedResp.StatusCode, http.StatusOK)
 	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/missing-account", nil)
+	deleteReq.Header.Set("Authorization", "Bearer "+loginBody.AccessToken)
+	deleteResp, err := app.Test(deleteReq)
+	if err != nil {
+		t.Fatalf("delete app.Test() error = %v", err)
+	}
+	if deleteResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("delete status = %d, want %d", deleteResp.StatusCode, http.StatusNotFound)
+	}
+	if contentType := deleteResp.Header.Get("Content-Type"); !strings.Contains(contentType, "application/json") {
+		t.Fatalf("delete Content-Type = %q, want JSON error", contentType)
+	}
 }
 
 func TestNewRegistersAccountRoutes(t *testing.T) {

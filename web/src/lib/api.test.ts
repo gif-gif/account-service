@@ -91,4 +91,15 @@ describe("apiFetch", () => {
       new APIError("unauthorized", "Admin session is required", "request-id", 401),
     );
   });
+
+  it("normalizes non-json error responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Method Not Allowed", { status: 405, headers: { "X-Request-ID": "request-id" } })),
+    );
+
+    await expect(apiFetch("/api/v1/accounts/account-id", { method: "DELETE" })).rejects.toMatchObject(
+      new APIError("request_failed", "Method Not Allowed", "request-id", 405),
+    );
+  });
 });

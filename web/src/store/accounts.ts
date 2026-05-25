@@ -18,6 +18,8 @@ export type Account = {
   max_concurrent_leases?: number;
   tags: string[];
   notes?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type AccountFilters = {
