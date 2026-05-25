@@ -45,7 +45,7 @@ func Load() (Config, error) {
 		DefaultLeaseTTLSeconds:            envInt("DEFAULT_LEASE_TTL_SECONDS", 900),
 		MaxLeaseTTLSeconds:                envInt("MAX_LEASE_TTL_SECONDS", 7200),
 		LeaseCleanupIntervalSeconds:       envInt("LEASE_CLEANUP_INTERVAL_SECONDS", 60),
-		JWTAccessTokenTTLSeconds:          envInt("JWT_ACCESS_TOKEN_TTL_SECONDS", 900),
+		JWTAccessTokenTTLSeconds:          envInt("JWT_ACCESS_TOKEN_TTL_SECONDS", 172800),
 		JWTRefreshTokenTTLSeconds:         envInt("JWT_REFRESH_TOKEN_TTL_SECONDS", 604800),
 		HealthCheckDatabaseTimeoutSeconds: envInt("HEALTH_CHECK_DATABASE_TIMEOUT_SECONDS", 3),
 	}
