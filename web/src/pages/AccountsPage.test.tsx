@@ -78,6 +78,10 @@ describe("AccountsPage", () => {
     expect(screen.getByRole("columnheader", { name: "最大租约数" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "创建时间" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
+    expect(screen.queryByText("account-id")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "查看 ID user@example.com" }));
+    expect(screen.getByRole("dialog", { name: "ID" })).toHaveTextContent("account-id");
+    await userEvent.click(screen.getByRole("button", { name: "关闭" }));
     expect(screen.queryByText("provider-access")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "查看 Access Token user@example.com" }));
     expect(screen.getByRole("dialog", { name: "Access Token" })).toHaveTextContent("provider-access");
@@ -107,6 +111,8 @@ describe("AccountsPage", () => {
                 max_concurrent_leases: 1,
                 tags: ["openai"],
                 notes: "primary",
+                created_at: "2026-05-25T08:00:00Z",
+                updated_at: "2026-05-25T09:00:00Z",
               },
             ],
           }),
@@ -189,24 +195,68 @@ describe("AccountsPage", () => {
     await userEvent.type(within(createDialog).getByLabelText("Refresh Token"), "provider-refresh");
     await userEvent.type(within(createDialog).getByLabelText("区域"), "eu");
     await userEvent.type(within(createDialog).getByLabelText("账号类型"), "team");
+    await userEvent.selectOptions(within(createDialog).getByLabelText("状态"), "login_failed");
     await userEvent.type(within(createDialog).getByLabelText("剩余额度"), "500");
     await userEvent.click(within(createDialog).getByRole("button", { name: "创建" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/accounts", expect.objectContaining({ method: "POST" })));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts",
+      expect.objectContaining({
+        body: expect.stringContaining('"status":"login_failed"'),
+        method: "POST",
+      }),
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "查看 user@example.com" }));
-    expect(screen.getByRole("dialog", { name: "账号详情" })).toHaveTextContent("primary");
+    const detailsDialog = screen.getByRole("dialog", { name: "账号详情" });
+    [
+      "ID",
+      "用户名",
+      "密码",
+      "登录地址",
+      "Access Token",
+      "Refresh Token",
+      "区域",
+      "账号类型",
+      "状态",
+      "总额度",
+      "已用额度",
+      "剩余额度",
+      "最大租约数",
+      "标签",
+      "备注",
+      "创建时间",
+      "更新时间",
+    ].forEach((label) => expect(within(detailsDialog).getByText(label)).toBeInTheDocument());
+    expect(detailsDialog).toHaveTextContent("account-id");
+    expect(detailsDialog).toHaveTextContent("user@example.com");
+    expect(detailsDialog).toHaveTextContent("https://example.com/login");
+    expect(detailsDialog).toHaveTextContent("primary");
+    expect(detailsDialog).toHaveTextContent("openai");
+    expect(detailsDialog).not.toHaveTextContent("provider-access");
+    await userEvent.click(within(detailsDialog).getByRole("button", { name: "查看 Access Token user@example.com" }));
+    expect(screen.getByRole("dialog", { name: "Access Token" })).toHaveTextContent("provider-access");
     await userEvent.click(screen.getByRole("button", { name: "关闭" }));
 
     await userEvent.click(screen.getByRole("button", { name: "编辑 user@example.com" }));
     const editDialog = screen.getByRole("dialog", { name: "编辑账号" });
     expect(editDialog).toBeInTheDocument();
+    expect(within(editDialog).getByLabelText("状态")).toHaveValue("active");
+    await userEvent.selectOptions(within(editDialog).getByLabelText("状态"), "disabled");
     await userEvent.clear(within(editDialog).getByLabelText("剩余额度"));
     await userEvent.type(within(editDialog).getByLabelText("剩余额度"), "700");
     await userEvent.click(within(editDialog).getByRole("button", { name: "保存" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/accounts/account-id", expect.objectContaining({ method: "PATCH" })),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id",
+      expect.objectContaining({
+        body: expect.stringContaining('"status":"disabled"'),
+        method: "PATCH",
+      }),
     );
 
     await userEvent.click(screen.getByRole("button", { name: "删除 user@example.com" }));

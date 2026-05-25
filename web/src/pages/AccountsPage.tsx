@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
@@ -198,7 +198,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                 {accounts.map((account) => (
                   <TableRow key={account.id}>
                     <TableCell>
-                      <code className="metadata-code">{account.id}</code>
+                      <SecretButton label={t("accounts.id")} value={account.id} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
                     </TableCell>
                     <TableCell className="account-name">{account.username}</TableCell>
                     <TableCell>
@@ -281,6 +281,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         saving={saving}
         onClose={() => setDialog(null)}
         onDelete={deleteAccount}
+        onReveal={(title, value) => setDialog({ type: "secret", title, value })}
         onSubmit={submitAccount}
         t={t}
       />
@@ -293,6 +294,7 @@ function AccountDialogs({
   dialog,
   onClose,
   onDelete,
+  onReveal,
   onSubmit,
   saving,
   t,
@@ -301,6 +303,7 @@ function AccountDialogs({
   dialog: DialogState;
   onClose: () => void;
   onDelete: (account: Account) => Promise<void>;
+  onReveal: (title: string, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>, account?: Account) => Promise<void>;
   saving: boolean;
   t: (key: TranslationKey) => string;
@@ -338,14 +341,7 @@ function AccountDialogs({
             <DialogTitle>{t("accounts.detailsTitle")}</DialogTitle>
             <DialogDescription>{dialog.account.username}</DialogDescription>
           </DialogHeader>
-          <div className="detail-grid">
-            <DetailItem label={t("accounts.region")} value={dialog.account.region} />
-            <DetailItem label={t("accounts.accountType")} value={dialog.account.account_type} />
-            <DetailItem label={t("accounts.status")} value={dialog.account.status} />
-            <DetailItem label={t("accounts.quotaRemaining")} value={dialog.account.quota_remaining.toString()} />
-            <DetailItem label={t("accounts.loginUrl")} value={dialog.account.login_url || "-"} />
-            <DetailItem label={t("accounts.notes")} value={dialog.account.notes || "-"} />
-          </div>
+          <AccountDetails account={dialog.account} onReveal={onReveal} t={t} />
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">
@@ -397,6 +393,62 @@ function AccountDialogs({
         </DialogContent>
       ) : null}
     </Dialog>
+  );
+}
+
+function AccountDetails({
+  account,
+  onReveal,
+  t,
+}: {
+  account: Account;
+  onReveal: (title: string, value: string) => void;
+  t: (key: TranslationKey) => string;
+}) {
+  return (
+    <div className="detail-grid">
+      <DetailItem label={t("accounts.id")} value={<code className="metadata-code">{account.id}</code>} />
+      <DetailItem label={t("accounts.username")} value={account.username || "-"} />
+      <DetailItem
+        label={t("accounts.password")}
+        value={<SecretButton label={t("accounts.password")} value={account.password} account={account} onReveal={onReveal} t={t} />}
+      />
+      <DetailItem label={t("accounts.loginUrl")} value={account.login_url || "-"} />
+      <DetailItem
+        label={t("accounts.accessToken")}
+        value={<SecretButton label={t("accounts.accessToken")} value={account.access_token} account={account} onReveal={onReveal} t={t} />}
+      />
+      <DetailItem
+        label={t("accounts.refreshToken")}
+        value={<SecretButton label={t("accounts.refreshToken")} value={account.refresh_token} account={account} onReveal={onReveal} t={t} />}
+      />
+      <DetailItem label={t("accounts.region")} value={account.region || "-"} />
+      <DetailItem label={t("accounts.accountType")} value={account.account_type || "-"} />
+      <DetailItem label={t("accounts.status")} value={<StatusBadge status={account.status} />} />
+      <DetailItem label={t("accounts.quotaTotal")} value={account.quota_total ?? 0} />
+      <DetailItem label={t("accounts.quotaUsed")} value={account.quota_used ?? 0} />
+      <DetailItem label={t("accounts.quotaRemaining")} value={account.quota_remaining ?? 0} />
+      <DetailItem label={t("accounts.maxLeases")} value={account.max_concurrent_leases ?? 1} />
+      <DetailItem
+        label={t("accounts.tags")}
+        value={
+          (account.tags ?? []).length > 0 ? (
+            <div className="tag-list">
+              {(account.tags ?? []).map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            "-"
+          )
+        }
+      />
+      <DetailItem label={t("accounts.notes")} value={account.notes || "-"} />
+      <DetailItem label={t("accounts.createdAt")} value={formatDate(account.created_at)} />
+      <DetailItem label={t("accounts.updatedAt")} value={formatDate(account.updated_at)} />
+    </div>
   );
 }
 
@@ -467,7 +519,13 @@ function AccountForm({
         </Label>
         <Label className="form-row">
           {t("accounts.status")}
-          <Input defaultValue={account?.status ?? "active"} name="status" />
+          <select className="ui-select" defaultValue={account?.status ?? "active"} name="status">
+            {accountStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
         </Label>
         <Label className="form-row">
           {t("accounts.quotaTotal")}
@@ -509,7 +567,7 @@ function AccountForm({
       ) : null}
       <DialogFooter>
         <DialogClose asChild>
-            <Button disabled={saving} type="button" variant="secondary">
+          <Button disabled={saving} type="button" variant="secondary">
             {t("common.cancel")}
           </Button>
         </DialogClose>
@@ -521,11 +579,11 @@ function AccountForm({
   );
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="detail-item">
       <span>{label}</span>
-      <strong>{value}</strong>
+      <div className="detail-value">{value}</div>
     </div>
   );
 }

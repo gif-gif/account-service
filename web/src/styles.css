@@ -566,10 +566,15 @@ input {
   padding-block: 0;
 }
 
+.filter-panel [data-slot="card-content"] {
+  padding: 18px 24px 20px;
+}
+
 .account-filter-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(220px, 1.5fr) auto;
-  gap: 12px;
+  column-gap: 18px;
+  row-gap: 16px;
   align-items: end;
 }
 
@@ -601,7 +606,6 @@ input {
   align-items: stretch !important;
   gap: 6px !important;
   width: min(100%, 360px);
-  margin-bottom: 12px;
 }
 
 .account-cell {
@@ -688,9 +692,16 @@ input {
   font-size: 12px;
 }
 
-.detail-item strong {
+.detail-value {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
   overflow-wrap: anywhere;
   font-size: 14px;
+}
+
+.detail-value .tag-list {
+  flex-wrap: wrap;
 }
 
 .secret-value {
@@ -773,6 +784,10 @@ input {
 
   .account-filter-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-panel [data-slot="card-content"] {
+    padding: 16px;
   }
 
   .toolbar-field,
