@@ -236,8 +236,12 @@ describe("AccountsPage", () => {
     expect(detailsDialog).toHaveTextContent("openai");
     expect(detailsDialog).not.toHaveTextContent("provider-access");
     await userEvent.click(within(detailsDialog).getByRole("button", { name: "查看 Access Token user@example.com" }));
-    expect(screen.getByRole("dialog", { name: "Access Token" })).toHaveTextContent("provider-access");
-    await userEvent.click(screen.getByRole("button", { name: "关闭" }));
+    const secretDialog = screen.getByRole("dialog", { name: "Access Token" });
+    expect(secretDialog).toHaveTextContent("provider-access");
+    expect(screen.getByRole("dialog", { name: "账号详情" })).toBeInTheDocument();
+    await userEvent.click(within(secretDialog).getByRole("button", { name: "关闭" }));
+    expect(screen.getByRole("dialog", { name: "账号详情" })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole("dialog", { name: "账号详情" })).getByRole("button", { name: "关闭" }));
 
     await userEvent.click(screen.getByRole("button", { name: "编辑 user@example.com" }));
     const editDialog = screen.getByRole("dialog", { name: "编辑账号" });

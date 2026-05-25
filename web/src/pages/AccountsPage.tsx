@@ -23,8 +23,9 @@ type DialogState =
   | { type: "view"; account: Account }
   | { type: "edit"; account: Account }
   | { type: "delete"; account: Account }
-  | { type: "secret"; title: string; value: string }
   | null;
+
+type SecretDialogState = { title: string; value: string } | null;
 
 const accountStatuses = ["active", "disabled", "exhausted", "login_failed", "token_expired", "region_blocked", "error"] as const;
 
@@ -37,6 +38,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
   const load = store((state) => state.load);
   const setFilter = store((state) => state.setFilter);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [secretDialog, setSecretDialog] = useState<SecretDialogState>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -198,18 +200,18 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                 {accounts.map((account) => (
                   <TableRow key={account.id}>
                     <TableCell>
-                      <SecretButton label={t("accounts.id")} value={account.id} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                      <SecretButton label={t("accounts.id")} value={account.id} account={account} onReveal={(title, value) => setSecretDialog({ title, value })} t={t} />
                     </TableCell>
                     <TableCell className="account-name">{account.username}</TableCell>
                     <TableCell>
-                      <SecretButton label={t("accounts.password")} value={account.password} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                      <SecretButton label={t("accounts.password")} value={account.password} account={account} onReveal={(title, value) => setSecretDialog({ title, value })} t={t} />
                     </TableCell>
                     <TableCell className="wide-cell">{account.login_url || t("accounts.noLoginUrl")}</TableCell>
                     <TableCell>
-                      <SecretButton label={t("accounts.accessToken")} value={account.access_token} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                      <SecretButton label={t("accounts.accessToken")} value={account.access_token} account={account} onReveal={(title, value) => setSecretDialog({ title, value })} t={t} />
                     </TableCell>
                     <TableCell>
-                      <SecretButton label={t("accounts.refreshToken")} value={account.refresh_token} account={account} onReveal={(title, value) => setDialog({ type: "secret", title, value })} t={t} />
+                      <SecretButton label={t("accounts.refreshToken")} value={account.refresh_token} account={account} onReveal={(title, value) => setSecretDialog({ title, value })} t={t} />
                     </TableCell>
                     <TableCell>{account.region || "-"}</TableCell>
                     <TableCell>{account.account_type || "-"}</TableCell>
@@ -279,12 +281,14 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         actionError={actionError}
         dialog={dialog}
         saving={saving}
+        secretOpen={secretDialog !== null}
         onClose={() => setDialog(null)}
         onDelete={deleteAccount}
-        onReveal={(title, value) => setDialog({ type: "secret", title, value })}
+        onReveal={(title, value) => setSecretDialog({ title, value })}
         onSubmit={submitAccount}
         t={t}
       />
+      <SecretValueDialog dialog={secretDialog} onClose={() => setSecretDialog(null)} t={t} />
     </main>
   );
 }
@@ -297,6 +301,7 @@ function AccountDialogs({
   onReveal,
   onSubmit,
   saving,
+  secretOpen,
   t,
 }: {
   actionError: string | null;
@@ -306,6 +311,7 @@ function AccountDialogs({
   onReveal: (title: string, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>, account?: Account) => Promise<void>;
   saving: boolean;
+  secretOpen: boolean;
   t: (key: TranslationKey) => string;
 }) {
   return (
@@ -336,7 +342,7 @@ function AccountDialogs({
         </DialogContent>
       ) : null}
       {dialog?.type === "view" ? (
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onInteractOutside={(event) => (secretOpen ? event.preventDefault() : undefined)}>
           <DialogHeader>
             <DialogTitle>{t("accounts.detailsTitle")}</DialogTitle>
             <DialogDescription>{dialog.account.username}</DialogDescription>
@@ -377,7 +383,14 @@ function AccountDialogs({
           </DialogFooter>
         </DialogContent>
       ) : null}
-      {dialog?.type === "secret" ? (
+    </Dialog>
+  );
+}
+
+function SecretValueDialog({ dialog, onClose, t }: { dialog: SecretDialogState; onClose: () => void; t: (key: TranslationKey) => string }) {
+  return (
+    <Dialog modal={false} open={dialog !== null} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      {dialog ? (
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{dialog.title}</DialogTitle>
