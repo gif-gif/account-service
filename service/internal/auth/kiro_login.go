@@ -290,7 +290,7 @@ urlLoop:
 				return true
 			}
 			if matched, _ := regexp.MatchString(`(error|expired)`, all); matched {
-				logger.Error().Msg("授权失败，终端检测到验证码过期或授权错误")
+				logger.Error().Msg("授权失败，终端检测到验证码过期或授权错误 outputAll :" + all)
 				killProcess(cmd)
 				return false
 			}
