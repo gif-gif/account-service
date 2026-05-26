@@ -11,6 +11,7 @@ import (
 
 	"account-service/service/internal/audit"
 	"account-service/service/internal/auth"
+	"account-service/service/internal/logging"
 	"account-service/service/internal/security"
 
 	"github.com/gofiber/fiber/v3"
@@ -152,6 +153,7 @@ type KiroCliConfig struct {
 type KiroLoginRunner interface {
 	KiroCliLogin() (bool, *KiroCliConfig)
 	Cancel()
+	Running() bool
 }
 
 type KiroLoginResult struct {
@@ -421,7 +423,7 @@ func (service *Service) StartKiroLogin(accountID string) (KiroLoginResult, error
 	go func() {
 		success, config := runner.KiroCliLogin()
 		if success && config != nil {
-			_, _ = service.Update(accountID, UpdateAccountRequest{
+			if _, err := service.Update(accountID, UpdateAccountRequest{
 				AccessToken:    &config.AccessToken,
 				RefreshToken:   &config.RefreshToken,
 				Status:         ptrStatus(StatusActive),
@@ -429,10 +431,16 @@ func (service *Service) StartKiroLogin(accountID string) (KiroLoginResult, error
 				KiroProfileARN: &config.ProfileARN,
 				KiroAuthMethod: &config.AuthMethod,
 				KiroProvider:   &config.Provider,
-			})
+			}); err != nil {
+				logger := logging.Default()
+				logger.Error().Err(err).Str("account_id", accountID).Msg("update kiro login account")
+			}
 			return
 		}
-		_, _ = service.Update(accountID, UpdateAccountRequest{Status: ptrStatus(StatusLoginFailed)})
+		if _, err := service.Update(accountID, UpdateAccountRequest{Status: ptrStatus(StatusLoginFailed)}); err != nil {
+			logger := logging.Default()
+			logger.Error().Err(err).Str("account_id", accountID).Msg("mark kiro login failed")
+		}
 	}()
 	return KiroLoginResult{AccountID: accountID, Status: "running"}, nil
 }
@@ -444,6 +452,14 @@ func (service *Service) CancelKiroLogin(accountID string) error {
 	}
 	runner.Cancel()
 	return nil
+}
+
+func (service *Service) KiroLoginRunning(accountID string) bool {
+	runner := service.kiroLoginRunner
+	if runner == nil {
+		runner = authKiroRunner{}
+	}
+	return runner.Running()
 }
 
 func (service *Service) decrypt(account StoredAccount) (Account, error) {
@@ -471,6 +487,7 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Patch("/api/v1/accounts/:id", service.handleUpdate)
 	app.Post("/api/v1/accounts/:id/status", service.handleStatus)
 	app.Post("/api/v1/accounts/:id/kiroLogin", service.handleKiroLogin)
+	app.Get("/api/v1/accounts/:id/kiroLogin/running", service.handleKiroLoginRunning)
 	app.Post("/api/v1/accounts/:id/cancelKiroLogin", service.handleCancelKiroLogin)
 	app.Delete("/api/v1/accounts/:id", service.handleDelete)
 }
@@ -566,6 +583,10 @@ func (service *Service) handleCancelKiroLogin(c fiber.Ctx) error {
 		return jsonError(c, http.StatusConflict, "kiro_login_cancel_failed", err.Error())
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{"ok": true})
+}
+
+func (service *Service) handleKiroLoginRunning(c fiber.Ctx) error {
+	return c.Status(http.StatusOK).JSON(fiber.Map{"running": service.KiroLoginRunning(c.Params("id"))})
 }
 
 func (service *Service) handleDelete(c fiber.Ctx) error {
@@ -680,4 +701,8 @@ func (authKiroRunner) KiroCliLogin() (bool, *KiroCliConfig) {
 
 func (authKiroRunner) Cancel() {
 	auth.Kiro.Cancel()
+}
+
+func (authKiroRunner) Running() bool {
+	return auth.Kiro.Running()
 }

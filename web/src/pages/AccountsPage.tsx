@@ -134,6 +134,21 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     }
   }
 
+  async function checkKiroLoginRunning(account: Account) {
+    try {
+      const result = await apiFetch<{ running: boolean }>(`/api/v1/accounts/${account.id}/kiroLogin/running`, {
+        method: "GET",
+      });
+      if (!result.running) {
+        setDialog((current) => (current?.type === "kiroLogin" && current.account.id === account.id ? null : current));
+        setKiroLoginStatus("starting");
+        await load();
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to check Kiro login status");
+    }
+  }
+
   useEffect(() => {
     if (dialog?.type !== "kiroLogin") {
       return;
@@ -144,6 +159,17 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     }, 120_000);
     return () => window.clearTimeout(timeout);
   }, [dialog]);
+
+  useEffect(() => {
+    if (dialog?.type !== "kiroLogin" || kiroLoginStatus !== "running") {
+      return;
+    }
+    const account = dialog.account;
+    const interval = window.setInterval(() => {
+      void checkKiroLoginRunning(account);
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [dialog, kiroLoginStatus]);
 
   return (
     <main className="page">

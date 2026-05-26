@@ -350,6 +350,63 @@ describe("AccountsPage", () => {
 
   it("auto cancels kiro login after two minutes", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/kiroLogin")) {
+        return new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 });
+      }
+      if (url.endsWith("/kiroLogin/running")) {
+        return new Response(JSON.stringify({ running: true }), { status: 200 });
+      }
+      if (url.endsWith("/cancelKiroLogin")) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          accounts: [
+            {
+              id: "account-id",
+              username: "user@example.com",
+              password: "plain-password",
+              login_url: "https://example.com/login",
+              access_token: "provider-access",
+              refresh_token: "provider-refresh",
+              region: "us",
+              account_type: "kiro",
+              status: "disabled",
+              quota_remaining: 900,
+              quota_total: 1000,
+              quota_used: 100,
+              max_concurrent_leases: 1,
+              tags: ["kiro"],
+              notes: "primary",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AccountsPage store={createAccountsStore()} />);
+
+    await screen.findByText("user@example.com");
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    expect(screen.getByRole("dialog", { name: "账号登录" })).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/cancelKiroLogin",
+      expect.objectContaining({ method: "POST" }),
+    );
+    vi.useRealTimers();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument());
+  });
+
+  it("polls kiro login running state and closes the dialog when it stops", async () => {
+    setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -379,7 +436,8 @@ describe("AccountsPage", () => {
         ),
       )
       .mockResolvedValueOnce(new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ running: false }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ accounts: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<AccountsPage store={createAccountsStore()} />);
@@ -388,15 +446,27 @@ describe("AccountsPage", () => {
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
     expect(screen.getByRole("dialog", { name: "账号登录" })).toBeInTheDocument();
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/kiroLogin",
+      expect.objectContaining({ method: "POST" }),
+    );
 
-    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/kiroLogin/running",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
       "https://api.example.com/api/v1/accounts/account-id/cancelKiroLogin",
       expect.objectContaining({ method: "POST" }),
     );
-    vi.useRealTimers();
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument());
   });
 
   it("shows backend errors", async () => {

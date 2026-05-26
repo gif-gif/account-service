@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"account-service/service/internal/audit"
+	"account-service/service/internal/logging"
 	"account-service/service/internal/security"
 
 	"github.com/gofiber/fiber/v3"
@@ -174,6 +176,51 @@ func TestKiroLoginMarksAccountFailedOnFailure(t *testing.T) {
 	}
 }
 
+func TestKiroLoginLogsUpdateErrors(t *testing.T) {
+	var logs bytes.Buffer
+	logging.SetDefault(logging.New(&logs, "debug"))
+	t.Cleanup(func() {
+		logging.SetDefault(logging.New(&bytes.Buffer{}, "info"))
+	})
+
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	release := make(chan struct{})
+	runner := &fakeKiroLoginRunner{
+		success: true,
+		config: &KiroCliConfig{
+			AccessToken:  "kiro-access",
+			RefreshToken: "kiro-refresh",
+			ExpiresAt:    time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+			ProfileARN:   "arn:aws:iam::123456789012:role/Kiro",
+			AuthMethod:   "device",
+			Provider:     "google",
+		},
+		done: make(chan struct{}),
+		wait: release,
+	}
+	svc.SetKiroLoginRunner(runner)
+	account := createTestAccount(t, svc, StatusDisabled)
+
+	if _, err := svc.StartKiroLogin(account.ID); err != nil {
+		t.Fatalf("StartKiroLogin() error = %v", err)
+	}
+	if err := svc.Delete(account.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	close(release)
+	waitForFakeRunner(t, runner)
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(logs.String(), "update kiro login account") {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("logs = %q, want update error log", logs.String())
+}
+
 func TestCancelKiroLoginCallsRunnerCancel(t *testing.T) {
 	codec := mustCodec(t)
 	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
@@ -185,6 +232,24 @@ func TestCancelKiroLoginCallsRunnerCancel(t *testing.T) {
 	}
 	if runner.cancelCalls != 1 {
 		t.Fatalf("cancelCalls = %d, want 1", runner.cancelCalls)
+	}
+}
+
+func TestKiroLoginRunningUsesRunnerState(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{running: true}
+	svc.SetKiroLoginRunner(runner)
+
+	running := svc.KiroLoginRunning("account-id")
+	if !running {
+		t.Fatal("KiroLoginRunning() = false, want true")
+	}
+
+	runner.running = false
+	running = svc.KiroLoginRunning("account-id")
+	if running {
+		t.Fatal("KiroLoginRunning() = true, want false")
 	}
 }
 
@@ -337,6 +402,24 @@ func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	if runner.cancelCalls != 1 {
 		t.Fatalf("cancelCalls = %d, want 1", runner.cancelCalls)
 	}
+
+	runner.running = true
+	runningResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+account.ID+"/kiroLogin/running", nil))
+	if err != nil {
+		t.Fatalf("kiroLogin running app.Test() error = %v", err)
+	}
+	if runningResp.StatusCode != http.StatusOK {
+		t.Fatalf("running status = %d, want %d", runningResp.StatusCode, http.StatusOK)
+	}
+	var runningBody struct {
+		Running bool `json:"running"`
+	}
+	if err := json.NewDecoder(runningResp.Body).Decode(&runningBody); err != nil {
+		t.Fatalf("decode running response: %v", err)
+	}
+	if !runningBody.Running {
+		t.Fatalf("running response = %#v, want running true", runningBody)
+	}
 }
 
 func mustCodec(t *testing.T) security.CredentialCodec {
@@ -360,16 +443,25 @@ type fakeKiroLoginRunner struct {
 	success     bool
 	config      *KiroCliConfig
 	done        chan struct{}
+	wait        chan struct{}
 	cancelCalls int
+	running     bool
 }
 
 func (runner *fakeKiroLoginRunner) KiroCliLogin() (bool, *KiroCliConfig) {
+	if runner.wait != nil {
+		<-runner.wait
+	}
 	defer close(runner.done)
 	return runner.success, runner.config
 }
 
 func (runner *fakeKiroLoginRunner) Cancel() {
 	runner.cancelCalls++
+}
+
+func (runner *fakeKiroLoginRunner) Running() bool {
+	return runner.running
 }
 
 func createTestAccount(t *testing.T, svc *Service, status Status) Account {
