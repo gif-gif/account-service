@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
+import { AccountTypeSelect } from "../components/AccountTypeSelect";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -11,7 +12,6 @@ import { Label } from "../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
 import type { Account, AccountsStore } from "../store/accounts";
-import { accountTypes } from "../store/accounts";
 import { useAccountsStore } from "../store/accounts";
 import { useI18n, type TranslationKey } from "../store/settings";
 
@@ -129,14 +129,13 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
               </Label>
               <Label className="toolbar-field">
                 {t("accounts.type")}
-                <select className="ui-select" value={filters.accountType} onChange={(event) => setFilter("accountType", event.target.value)}>
-                  <option value="">{t("accounts.typeAll")}</option>
-                  {accountTypes.map((accountType) => (
-                    <option key={accountType} value={accountType}>
-                      {accountType}
-                    </option>
-                  ))}
-                </select>
+                <AccountTypeSelect
+                  allLabel={t("accounts.typeAll")}
+                  ariaLabel={t("accounts.type")}
+                  includeAll
+                  value={filters.accountType}
+                  onValueChange={(value) => setFilter("accountType", value)}
+                />
               </Label>
               <Label className="toolbar-field">
                 {t("accounts.status")}
@@ -536,13 +535,7 @@ function AccountForm({
         </Label>
         <Label className="form-row">
           {t("accounts.accountType")}
-          <select className="ui-select" defaultValue={account?.account_type ?? accountTypes[0]} name="account_type">
-            {accountTypes.map((accountType) => (
-              <option key={accountType} value={accountType}>
-                {accountType}
-              </option>
-            ))}
-          </select>
+          <AccountTypeSelect ariaLabel={t("accounts.accountType")} defaultValue={account?.account_type} name="account_type" />
         </Label>
         <Label className="form-row">
           {t("accounts.status")}

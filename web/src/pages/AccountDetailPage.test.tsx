@@ -11,6 +11,11 @@ describe("AccountDetailPage", () => {
     clearAuthTokens();
   });
 
+  async function selectDropdownOption(control: HTMLElement, option: string) {
+    await userEvent.click(control);
+    await userEvent.click(await screen.findByRole("option", { name: option }));
+  }
+
   it("creates account from form fields", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ account: { id: "account-id", username: "user@example.com" } }), { status: 201 }));
@@ -24,7 +29,8 @@ describe("AccountDetailPage", () => {
     await userEvent.type(screen.getByLabelText("Access token"), "access-token");
     await userEvent.type(screen.getByLabelText("Refresh token"), "refresh-token");
     await userEvent.type(screen.getByLabelText("Region"), "us");
-    await userEvent.selectOptions(screen.getByLabelText("Account type"), "codex");
+    expect(screen.getByLabelText("Account type")).toHaveAttribute("data-slot", "select-trigger");
+    await selectDropdownOption(screen.getByLabelText("Account type"), "codex");
     await userEvent.type(screen.getByLabelText("Quota remaining"), "900");
     await userEvent.click(screen.getByRole("button", { name: "Save account" }));
 

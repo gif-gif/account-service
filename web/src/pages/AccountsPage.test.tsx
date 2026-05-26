@@ -13,6 +13,11 @@ describe("AccountsPage", () => {
     localStorage.clear();
   });
 
+  async function selectDropdownOption(control: HTMLElement, option: string) {
+    await userEvent.click(control);
+    await userEvent.click(await screen.findByRole("option", { name: option }));
+  }
+
   it("loads accounts and applies filters", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi.fn(async () =>
@@ -55,7 +60,8 @@ describe("AccountsPage", () => {
     const filters = screen.getByRole("group", { name: "筛选条件" });
     expect(within(filters).getByText("筛选条件")).toBeInTheDocument();
     await userEvent.type(within(filters).getByLabelText("区域"), "us");
-    await userEvent.selectOptions(within(filters).getByLabelText("类型"), "codex");
+    expect(within(filters).getByLabelText("类型")).toHaveAttribute("data-slot", "select-trigger");
+    await selectDropdownOption(within(filters).getByLabelText("类型"), "codex");
     await userEvent.selectOptions(within(filters).getByLabelText("状态"), "active");
     await userEvent.click(screen.getByRole("button", { name: "筛选" }));
 
@@ -194,7 +200,8 @@ describe("AccountsPage", () => {
     await userEvent.type(within(createDialog).getByLabelText("Access Token"), "provider-access");
     await userEvent.type(within(createDialog).getByLabelText("Refresh Token"), "provider-refresh");
     await userEvent.type(within(createDialog).getByLabelText("区域"), "eu");
-    await userEvent.selectOptions(within(createDialog).getByLabelText("账号类型"), "kiro");
+    expect(within(createDialog).getByLabelText("账号类型")).toHaveAttribute("data-slot", "select-trigger");
+    await selectDropdownOption(within(createDialog).getByLabelText("账号类型"), "kiro");
     await userEvent.selectOptions(within(createDialog).getByLabelText("状态"), "login_failed");
     await userEvent.type(within(createDialog).getByLabelText("剩余额度"), "500");
     await userEvent.click(within(createDialog).getByRole("button", { name: "创建" }));
@@ -253,6 +260,7 @@ describe("AccountsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "编辑 user@example.com" }));
     const editDialog = screen.getByRole("dialog", { name: "编辑账号" });
     expect(editDialog).toBeInTheDocument();
+    expect(within(editDialog).getByLabelText("账号类型")).toHaveAttribute("data-slot", "select-trigger");
     expect(within(editDialog).getByLabelText("状态")).toHaveValue("active");
     await userEvent.selectOptions(within(editDialog).getByLabelText("状态"), "disabled");
     await userEvent.clear(within(editDialog).getByLabelText("剩余额度"));
