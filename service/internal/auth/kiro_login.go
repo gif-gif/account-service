@@ -21,7 +21,7 @@ var Kiro = KiroCli{}
 
 const authTokenPath = "~/.aws/sso/cache/kiro-auth-token-cli.json"
 
-var kiroLoginURLPattern = regexp.MustCompile(`https://app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+`)
+var kiroLoginURLPattern = regexp.MustCompile(`https://(?:app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+|view\.awsapps\.com/start/#/device\?user_code=[A-Z0-9-]+)`)
 
 type kiroAuthStatus string
 
@@ -140,23 +140,7 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 	output := strings.Builder{}
 	chunks := readPTYOutput(ptmx)
 
-	// ================== 阶段一：选择登录方式 ==================
-	logKiroInfo("等待 Select login method 提示")
-	if _, err := waitForPTYOutput(ctx, chunks, 10*time.Second, &output, func(text string) (bool, error) {
-		return strings.Contains(text, "Select login method"), nil
-	}); err != nil {
-		logKiroError("等不到选择提示或流程被取消", err)
-		killProcess(cmd)
-		return false
-	}
-	logKiroInfo("收到 Select login method，发送向下键+回车")
-
-	_, _ = ptmx.Write([]byte("\x1b[B"))
-	time.Sleep(200 * time.Millisecond)
-	_, _ = ptmx.Write([]byte("\n"))
-	logKiroInfo("已发送选择操作")
-
-	// ================== 阶段二：捕获 URL ==================
+	// ================== 阶段一：捕获 URL ==================
 	logKiroInfo("开始捕获登录 URL")
 	logKiroInfo("进入循环读取终端输出(15秒超时)")
 	text, err := waitForPTYOutput(ctx, chunks, 15*time.Second, &output, func(text string) (bool, error) {
@@ -187,7 +171,7 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 		return false
 	}
 
-	// ================== 阶段三：等待授权 (2分钟超时 + Context 监听) ==================
+	// ================== 阶段二：等待授权 (2分钟超时 + Context 监听) ==================
 	authTimeout := 2 * time.Minute
 	logKiroInfof("进入阶段三：等待授权 (超时: %v)", authTimeout)
 
@@ -292,7 +276,7 @@ func waitForPTYOutput(
 				logKiroInfof("读取到数据, 当前 buf 长度=%d", accumulated.Len())
 			}
 			if chunk.err != nil {
-				return accumulated.String(), chunk.err
+				return accumulated.String(), fmt.Errorf("%w; output=%q", chunk.err, truncate(accumulated.String(), 500))
 			}
 		}
 	}
@@ -303,7 +287,7 @@ func extractKiroLoginURL(output string) string {
 }
 
 func kiroAuthOutputStatus(output string) kiroAuthStatus {
-	if strings.Contains(output, "Signed in with Google") {
+	if strings.Contains(output, "Signed in with Google") || strings.Contains(output, "Logged in successfully") {
 		return kiroAuthSucceeded
 	}
 	if matched, _ := regexp.MatchString(`(?i)(error|expired)`, output); matched {

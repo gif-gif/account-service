@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/account-service ./cmd/account-service
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends bash ca-certificates curl gosu unzip \
