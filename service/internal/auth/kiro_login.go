@@ -9,10 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"account-service/service/internal/logging"
+
 	"github.com/Netflix/go-expect"
 	gomessage "github.com/gif-gif/go.io/go-message"
 	"github.com/gif-gif/go.io/go-utils/gojson"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 var Kiro = KiroCli{}
@@ -54,7 +55,6 @@ func (k *KiroCli) KiroCliLogin() (bool, *KiroCliConfig) {
 		k.running = false
 		k.cancel()
 	}()
-	logx.DisableStat()
 	urlChan := make(chan string, 1)
 
 	go func() {
@@ -68,12 +68,12 @@ func (k *KiroCli) KiroCliLogin() (bool, *KiroCliConfig) {
 	if success {
 		err := gojson.UnmarshalFromFile(authTokenPath, cliConfig)
 		if err != nil {
-			fmt.Println("\n Kiro-CLI 获取配置解析失败！" + err.Error())
+			logKiroError("Kiro-CLI 获取配置解析失败", err)
 			return false, nil
 		}
-		fmt.Println("\n🎉🎉🎉 主程序收到通知：Kiro-CLI 登录成功！")
+		logKiroInfo("Kiro-CLI 登录成功")
 	} else {
-		fmt.Println("\n❌❌❌ 主程序收到通知：Kiro-CLI 登录失败、超时或被外部取消！")
+		logKiroInfo("Kiro-CLI 登录失败、超时或被外部取消")
 	}
 
 	return success, cliConfig
@@ -83,95 +83,95 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 	defer close(urlChan)
 
 	if err := ctx.Err(); err != nil {
-		fmt.Println("❌ 错误：流程启动前已被取消")
+		logKiroError("流程启动前已被取消", err)
 		return false
 	}
 
 	// ================== 前置登出逻辑 ==================
-	fmt.Println("[STEP] 开始执行 logout...")
+	logKiroInfo("开始执行 logout")
 	logoutCmd := exec.Command("kiro-cli", "logout")
 	logoutCmd.Stdin = nil
 	logoutCmd.Stdout = nil
 	logoutCmd.Stderr = nil
 	logoutCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	fmt.Println("[STEP] logout 命令已创建，准备 Start...")
+	logKiroInfo("logout 命令已创建，准备 Start")
 	if err := logoutCmd.Start(); err != nil {
-		fmt.Printf("[STEP] logout Start 失败: %v\n", err)
+		logKiroError("logout Start 失败", err)
 	} else {
-		fmt.Printf("[STEP] logout 已启动, PID=%d, 等待完成(3秒超时)...\n", logoutCmd.Process.Pid)
+		logKiroInfof("logout 已启动, PID=%d, 等待完成(3秒超时)", logoutCmd.Process.Pid)
 		done := make(chan error, 1)
 		go func() { done <- logoutCmd.Wait() }()
 		select {
 		case err := <-done:
-			fmt.Printf("[STEP] logout 正常退出, err=%v\n", err)
+			logKiroInfof("logout 正常退出, err=%v", err)
 		case <-time.After(3 * time.Second):
-			fmt.Println("[STEP] logout 3秒超时，发送 SIGKILL...")
+			logKiroInfo("logout 3秒超时，发送 SIGKILL")
 			_ = syscall.Kill(-logoutCmd.Process.Pid, syscall.SIGKILL)
 			_ = logoutCmd.Process.Kill()
 			<-done
-			fmt.Println("[STEP] logout 已强杀")
+			logKiroInfo("logout 已强杀")
 		}
 	}
-	fmt.Println("[STEP] logout 阶段结束")
+	logKiroInfo("logout 阶段结束")
 
 	// ================== 初始化虚拟终端 ==================
-	fmt.Println("[STEP] 正在创建虚拟终端 (expect.NewConsole)...")
+	logKiroInfo("正在创建虚拟终端")
 	console, err := expect.NewConsole(expect.WithDefaultTimeout(10 * time.Second))
 	if err != nil {
-		fmt.Printf("❌ 无法初始化 Console: %v\n", err)
+		logKiroError("无法初始化 Console", err)
 		return false
 	}
 	defer console.Close()
-	fmt.Println("[STEP] 虚拟终端创建成功")
+	logKiroInfo("虚拟终端创建成功")
 
 	// ================== 启动进程 ==================
-	fmt.Println("[STEP] 正在启动 kiro-cli login...")
+	logKiroInfo("正在启动 kiro-cli login")
 	cmd := exec.CommandContext(ctx, "kiro-cli", "login")
 	cmd.Stdin = console.Tty()
 	cmd.Stdout = console.Tty()
 	cmd.Stderr = console.Tty()
 
 	if err := cmd.Start(); err != nil {
-		fmt.Printf("❌ 启动 kiro-cli 失败: %v\n", err)
+		logKiroError("启动 kiro-cli 失败", err)
 		return false
 	}
-	fmt.Printf("[STEP] kiro-cli login 已启动, PID=%d\n", cmd.Process.Pid)
+	logKiroInfof("kiro-cli login 已启动, PID=%d", cmd.Process.Pid)
 
 	_ = console.Tty().Close()
-	fmt.Println("[STEP] tty 已关闭，通过 master 端读写")
+	logKiroInfo("tty 已关闭，通过 master 端读写")
 
 	// ================== 阶段一：选择登录方式 ==================
-	fmt.Println("[STEP] 等待 'Select login method' 提示...")
+	logKiroInfo("等待 Select login method 提示")
 	_, err = console.ExpectString("Select login method")
 	if err != nil {
-		fmt.Printf("❌ 错误：等不到选择提示或流程被取消, err=%v\n", err)
+		logKiroError("等不到选择提示或流程被取消", err)
 		killProcess(cmd)
 		return false
 	}
-	fmt.Println("[STEP] 收到 'Select login method'，发送向下键+回车...")
+	logKiroInfo("收到 Select login method，发送向下键+回车")
 
 	_, _ = console.Send("\x1b[B")
 	time.Sleep(200 * time.Millisecond)
 	_, _ = console.Send("\n")
-	fmt.Println("[STEP] 已发送选择操作")
+	logKiroInfo("已发送选择操作")
 
 	// ================== 阶段二：捕获 URL ==================
-	fmt.Println("[STEP] 开始捕获登录 URL...")
+	logKiroInfo("开始捕获登录 URL")
 	reURL := regexp.MustCompile(`https://app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+`)
 
 	// 用循环读取代替 ExpectEOF，因为进程不会退出
-	fmt.Println("[STEP] 进入循环读取终端输出(15秒超时)...")
+	logKiroInfo("进入循环读取终端输出(15秒超时)")
 	deadline := time.After(15 * time.Second)
 	var buf string
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("🚫 在等待 URL 时流程被外部取消")
+			logKiroInfo("在等待 URL 时流程被外部取消")
 			killProcess(cmd)
 			return false
 		case <-deadline:
-			fmt.Printf("❌ 错误：未能在终端里找到登录 URL, buf 长度=%d\n", len(buf))
-			fmt.Printf("[STEP] buf 内容(前500字符): %s\n", truncate(buf, 500))
+			logKiroInfof("未能在终端里找到登录 URL, buf 长度=%d", len(buf))
+			logKiroInfof("buf 内容(前500字符): %s", truncate(buf, 500))
 			killProcess(cmd)
 			return false
 		default:
@@ -179,9 +179,9 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 			chunk, _ := console.ExpectString("\n")
 			if chunk != "" {
 				buf += chunk
-				fmt.Printf("[STEP] 读取到数据, 当前 buf 长度=%d\n", len(buf))
+				logKiroInfof("读取到数据, 当前 buf 长度=%d", len(buf))
 				if reURL.MatchString(buf) {
-					fmt.Println("[STEP] 匹配到 URL!")
+					logKiroInfo("匹配到 URL")
 					goto urlFound
 				}
 			}
@@ -191,24 +191,24 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 urlFound:
 	targetURL := reURL.FindString(buf)
 	if targetURL == "" {
-		fmt.Println("❌ 错误：未能从终端输出中提取登录 URL")
+		logKiroInfo("未能从终端输出中提取登录 URL")
 		killProcess(cmd)
 		return false
 	}
-	fmt.Printf("[STEP] 成功提取 URL: %s\n", targetURL)
+	logKiroInfof("成功提取 URL: %s", targetURL)
 
 	select {
 	case urlChan <- targetURL:
-		fmt.Println("[STEP] URL 已发送到 channel")
+		logKiroInfo("URL 已发送到 channel")
 	case <-ctx.Done():
-		fmt.Println("🚫 在发送 URL 时流程被外部取消")
+		logKiroInfo("在发送 URL 时流程被外部取消")
 		killProcess(cmd)
 		return false
 	}
 
 	// ================== 阶段三：等待授权 (2分钟超时 + Context 监听) ==================
 	authTimeout := 2 * time.Minute
-	fmt.Printf("[STEP] 进入阶段三：等待授权 (超时: %v)...\n", authTimeout)
+	logKiroInfof("进入阶段三：等待授权 (超时: %v)", authTimeout)
 
 	type expectResult struct {
 		output string
@@ -241,23 +241,23 @@ urlFound:
 
 	select {
 	case <-ctx.Done():
-		fmt.Println("\n🛑 [收到取消信号] 外部主动取消了登录流程！正在强杀命令行...")
+		logKiroInfo("收到取消信号，外部主动取消了登录流程，正在强杀命令行")
 		killProcess(cmd)
 		return false
 
 	case res := <-resultChan:
 		if res.err != nil {
 			if strings.Contains(res.err.Error(), "auth failed") {
-				fmt.Println("\n❌ [授权失败] 终端检测到验证码过期或授权错误！")
+				logKiroInfo("授权失败，终端检测到验证码过期或授权错误")
 			} else {
-				fmt.Printf("\n⏱️  [授权超时] 用户在 %v 内未完成操作。\n", authTimeout)
+				logKiroInfof("授权超时，用户在 %v 内未完成操作", authTimeout)
 			}
 			killProcess(cmd)
 			return false
 		}
 
 		if strings.Contains(res.output, "Signed in with Google") {
-			fmt.Println("\n✅ [登录成功] 检测到 'Signed in with Google'！")
+			logKiroInfo("登录成功，检测到 Signed in with Google")
 			_ = cmd.Wait()
 			return true
 		}
@@ -271,7 +271,7 @@ func killProcess(cmd *exec.Cmd) {
 	if cmd == nil || cmd.Process == nil {
 		return
 	}
-	fmt.Printf("[STEP] killProcess PID=%d\n", cmd.Process.Pid)
+	logKiroInfof("killProcess PID=%d", cmd.Process.Pid)
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
 }
@@ -281,4 +281,18 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+func logKiroInfo(message string) {
+	logger := logging.Default()
+	logger.Info().Str("component", "kiro_login").Msg(message)
+}
+
+func logKiroInfof(format string, args ...any) {
+	logKiroInfo(fmt.Sprintf(format, args...))
+}
+
+func logKiroError(message string, err error) {
+	logger := logging.Default()
+	logger.Error().Err(err).Str("component", "kiro_login").Msg(message)
 }

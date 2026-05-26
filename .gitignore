@@ -2,6 +2,7 @@
 *.env
 !.env
 service/.gocache/
+logs/
 web/dist/
 web/node_modules/
 web/tsconfig.tsbuildinfo

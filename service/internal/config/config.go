@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	AppEnv                            string
 	DatabaseURL                       string
 	ServiceBaseURL                    string
 	SecretEncryptionKey               string
@@ -21,6 +22,7 @@ type Config struct {
 	JWTRefreshTokenTTL                time.Duration
 	CORSAllowedOrigins                []string
 	LogLevel                          string
+	LogDir                            string
 	HealthCheckDatabaseTimeout        time.Duration
 	HTTPHost                          string
 	HTTPPort                          int
@@ -34,12 +36,14 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
+		AppEnv:                            envString("APP_ENV", "local"),
 		DatabaseURL:                       strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		ServiceBaseURL:                    strings.TrimSpace(os.Getenv("SERVICE_BASE_URL")),
 		SecretEncryptionKey:               strings.TrimSpace(os.Getenv("SECRET_ENCRYPTION_KEY")),
 		AdminSessionSecret:                strings.TrimSpace(os.Getenv("ADMIN_SESSION_SECRET")),
 		CORSAllowedOrigins:                splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		LogLevel:                          envString("LOG_LEVEL", "info"),
+		LogDir:                            envString("LOG_DIR", "logs"),
 		HTTPHost:                          envString("HTTP_HOST", "127.0.0.1"),
 		HTTPPort:                          envInt("HTTP_PORT", 8000),
 		DefaultLeaseTTLSeconds:            envInt("DEFAULT_LEASE_TTL_SECONDS", 900),

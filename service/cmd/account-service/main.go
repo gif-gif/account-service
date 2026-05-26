@@ -29,7 +29,18 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("load config")
 	}
-	logger = logging.New(os.Stdout, cfg.LogLevel)
+	logOutput, logPath, err := logging.NewOutput(cfg.AppEnv, cfg.LogDir, time.Now())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("open log output")
+	}
+	if logOutput != os.Stdout {
+		defer logOutput.Close()
+	}
+	logger = logging.New(logOutput, cfg.LogLevel)
+	logging.SetDefault(logger)
+	if logPath != "" {
+		logger.Info().Str("path", logPath).Msg("service logs writing to file")
+	}
 
 	fiberApp, err := buildApp(cfg)
 	if err != nil {

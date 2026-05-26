@@ -50,6 +50,12 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
 	}
+	if cfg.AppEnv != "local" {
+		t.Fatalf("AppEnv = %q, want local", cfg.AppEnv)
+	}
+	if cfg.LogDir != "logs" {
+		t.Fatalf("LogDir = %q, want logs", cfg.LogDir)
+	}
 	if cfg.HealthCheckDatabaseTimeout != 3*time.Second {
 		t.Fatalf("HealthCheckDatabaseTimeout = %s, want 3s", cfg.HealthCheckDatabaseTimeout)
 	}
