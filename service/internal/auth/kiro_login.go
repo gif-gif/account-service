@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -11,7 +12,7 @@ import (
 
 	"account-service/service/internal/logging"
 
-	"github.com/Netflix/go-expect"
+	"github.com/creack/pty"
 	gomessage "github.com/gif-gif/go.io/go-message"
 	"github.com/gif-gif/go.io/go-utils/gojson"
 )
@@ -19,6 +20,16 @@ import (
 var Kiro = KiroCli{}
 
 const authTokenPath = "~/.aws/sso/cache/kiro-auth-token-cli.json"
+
+var kiroLoginURLPattern = regexp.MustCompile(`https://app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+`)
+
+type kiroAuthStatus string
+
+const (
+	kiroAuthPending   kiroAuthStatus = "pending"
+	kiroAuthSucceeded kiroAuthStatus = "succeeded"
+	kiroAuthFailed    kiroAuthStatus = "failed"
+)
 
 type KiroCli struct {
 	running bool
@@ -114,82 +125,52 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 	}
 	logKiroInfo("logout 阶段结束")
 
-	// ================== 初始化虚拟终端 ==================
-	logKiroInfo("正在创建虚拟终端")
-	console, err := expect.NewConsole(expect.WithDefaultTimeout(10 * time.Second))
-	if err != nil {
-		logKiroError("无法初始化 Console", err)
-		return false
-	}
-	defer console.Close()
-	logKiroInfo("虚拟终端创建成功")
-
 	// ================== 启动进程 ==================
 	logKiroInfo("正在启动 kiro-cli login")
 	cmd := exec.CommandContext(ctx, "kiro-cli", "login")
-	cmd.Stdin = console.Tty()
-	cmd.Stdout = console.Tty()
-	cmd.Stderr = console.Tty()
 
-	if err := cmd.Start(); err != nil {
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
 		logKiroError("启动 kiro-cli 失败", err)
 		return false
 	}
+	defer ptmx.Close()
 	logKiroInfof("kiro-cli login 已启动, PID=%d", cmd.Process.Pid)
 
-	_ = console.Tty().Close()
-	logKiroInfo("tty 已关闭，通过 master 端读写")
+	output := strings.Builder{}
+	chunks := readPTYOutput(ptmx)
 
 	// ================== 阶段一：选择登录方式 ==================
 	logKiroInfo("等待 Select login method 提示")
-	_, err = console.ExpectString("Select login method")
-	if err != nil {
+	if _, err := waitForPTYOutput(ctx, chunks, 10*time.Second, &output, func(text string) (bool, error) {
+		return strings.Contains(text, "Select login method"), nil
+	}); err != nil {
 		logKiroError("等不到选择提示或流程被取消", err)
 		killProcess(cmd)
 		return false
 	}
 	logKiroInfo("收到 Select login method，发送向下键+回车")
 
-	_, _ = console.Send("\x1b[B")
+	_, _ = ptmx.Write([]byte("\x1b[B"))
 	time.Sleep(200 * time.Millisecond)
-	_, _ = console.Send("\n")
+	_, _ = ptmx.Write([]byte("\n"))
 	logKiroInfo("已发送选择操作")
 
 	// ================== 阶段二：捕获 URL ==================
 	logKiroInfo("开始捕获登录 URL")
-	reURL := regexp.MustCompile(`https://app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+`)
-
-	// 用循环读取代替 ExpectEOF，因为进程不会退出
 	logKiroInfo("进入循环读取终端输出(15秒超时)")
-	deadline := time.After(15 * time.Second)
-	var buf string
-	for {
-		select {
-		case <-ctx.Done():
-			logKiroInfo("在等待 URL 时流程被外部取消")
-			killProcess(cmd)
-			return false
-		case <-deadline:
-			logKiroInfof("未能在终端里找到登录 URL, buf 长度=%d", len(buf))
-			logKiroInfof("buf 内容(前500字符): %s", truncate(buf, 500))
-			killProcess(cmd)
-			return false
-		default:
-			time.Sleep(100 * time.Millisecond)
-			chunk, _ := console.ExpectString("\n")
-			if chunk != "" {
-				buf += chunk
-				logKiroInfof("读取到数据, 当前 buf 长度=%d", len(buf))
-				if reURL.MatchString(buf) {
-					logKiroInfo("匹配到 URL")
-					goto urlFound
-				}
-			}
-		}
+	text, err := waitForPTYOutput(ctx, chunks, 15*time.Second, &output, func(text string) (bool, error) {
+		return extractKiroLoginURL(text) != "", nil
+	})
+	if err != nil {
+		logKiroInfof("未能在终端里找到登录 URL, buf 长度=%d", output.Len())
+		logKiroInfof("buf 内容(前500字符): %s", truncate(output.String(), 500))
+		killProcess(cmd)
+		return false
 	}
+	logKiroInfo("匹配到 URL")
 
-urlFound:
-	targetURL := reURL.FindString(buf)
+	targetURL := extractKiroLoginURL(text)
 	if targetURL == "" {
 		logKiroInfo("未能从终端输出中提取登录 URL")
 		killProcess(cmd)
@@ -210,61 +191,36 @@ urlFound:
 	authTimeout := 2 * time.Minute
 	logKiroInfof("进入阶段三：等待授权 (超时: %v)", authTimeout)
 
-	type expectResult struct {
-		output string
-		err    error
-	}
-
-	resultChan := make(chan expectResult, 1)
-
-	go func() {
-		deadline := time.Now().Add(authTimeout)
-		var accumulated string
-		for time.Now().Before(deadline) {
-			chunk, err := console.ExpectString("\n")
-			accumulated += chunk
-			if strings.Contains(accumulated, "Signed in with Google") {
-				resultChan <- expectResult{output: accumulated, err: nil}
-				return
-			}
-			if matched, _ := regexp.MatchString(`(error|expired)`, accumulated); matched {
-				resultChan <- expectResult{output: accumulated, err: fmt.Errorf("auth failed")}
-				return
-			}
-			if err != nil {
-				resultChan <- expectResult{output: accumulated, err: err}
-				return
-			}
+	text, err = waitForPTYOutput(ctx, chunks, authTimeout, &output, func(text string) (bool, error) {
+		switch kiroAuthOutputStatus(text) {
+		case kiroAuthSucceeded:
+			return true, nil
+		case kiroAuthFailed:
+			return false, fmt.Errorf("auth failed")
+		default:
+			return false, nil
 		}
-		resultChan <- expectResult{output: accumulated, err: fmt.Errorf("timeout")}
-	}()
-
-	select {
-	case <-ctx.Done():
-		logKiroInfo("收到取消信号，外部主动取消了登录流程，正在强杀命令行")
-		killProcess(cmd)
-		return false
-
-	case res := <-resultChan:
-		if res.err != nil {
-			if strings.Contains(res.err.Error(), "auth failed") {
-				logKiroInfo("授权失败，终端检测到验证码过期或授权错误")
-			} else {
-				logKiroInfof("授权超时，用户在 %v 内未完成操作", authTimeout)
-			}
-			killProcess(cmd)
-			return false
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "auth failed") {
+			logKiroInfo("授权失败，终端检测到验证码过期或授权错误")
+		} else if ctx.Err() != nil {
+			logKiroInfo("收到取消信号，外部主动取消了登录流程，正在强杀命令行")
+		} else {
+			logKiroInfof("授权超时，用户在 %v 内未完成操作", authTimeout)
 		}
-
-		if strings.Contains(res.output, "Signed in with Google") {
-			logKiroInfo("登录成功，检测到 Signed in with Google")
-			_ = cmd.Wait()
-			return true
-		}
-
 		killProcess(cmd)
 		return false
 	}
+
+	if kiroAuthOutputStatus(text) == kiroAuthSucceeded {
+		logKiroInfo("登录成功，检测到 Signed in with Google")
+		_ = cmd.Wait()
+		return true
+	}
+
+	killProcess(cmd)
+	return false
 }
 
 func killProcess(cmd *exec.Cmd) {
@@ -281,6 +237,79 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+type ptyChunk struct {
+	text string
+	err  error
+}
+
+func readPTYOutput(reader io.Reader) <-chan ptyChunk {
+	chunks := make(chan ptyChunk, 16)
+	go func() {
+		defer close(chunks)
+		buf := make([]byte, 4096)
+		for {
+			n, err := reader.Read(buf)
+			if n > 0 {
+				chunks <- ptyChunk{text: string(buf[:n])}
+			}
+			if err != nil {
+				chunks <- ptyChunk{err: err}
+				return
+			}
+		}
+	}()
+	return chunks
+}
+
+func waitForPTYOutput(
+	ctx context.Context,
+	chunks <-chan ptyChunk,
+	timeout time.Duration,
+	accumulated *strings.Builder,
+	match func(string) (bool, error),
+) (string, error) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		if ok, err := match(accumulated.String()); ok || err != nil {
+			return accumulated.String(), err
+		}
+
+		select {
+		case <-ctx.Done():
+			return accumulated.String(), ctx.Err()
+		case <-timer.C:
+			return accumulated.String(), fmt.Errorf("timeout")
+		case chunk, ok := <-chunks:
+			if !ok {
+				return accumulated.String(), io.EOF
+			}
+			if chunk.text != "" {
+				accumulated.WriteString(chunk.text)
+				logKiroInfof("读取到数据, 当前 buf 长度=%d", accumulated.Len())
+			}
+			if chunk.err != nil {
+				return accumulated.String(), chunk.err
+			}
+		}
+	}
+}
+
+func extractKiroLoginURL(output string) string {
+	return kiroLoginURLPattern.FindString(output)
+}
+
+func kiroAuthOutputStatus(output string) kiroAuthStatus {
+	if strings.Contains(output, "Signed in with Google") {
+		return kiroAuthSucceeded
+	}
+	if matched, _ := regexp.MatchString(`(?i)(error|expired)`, output); matched {
+		return kiroAuthFailed
+	}
+	return kiroAuthPending
 }
 
 func logKiroInfo(message string) {
