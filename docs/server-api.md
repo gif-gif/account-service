@@ -17,6 +17,12 @@
 Authorization: Bearer <accessToken>
 ```
 
+外部服务接口使用 API Key：
+
+```http
+Authorization: Bearer <api_key>
+```
+
 通用错误响应：
 
 ```json
@@ -602,7 +608,7 @@ curl -i 'http://127.0.0.1:8000/api/v1/leases?status=released' \
 
 ## API Key 管理
 
-API Key 用于创建服务调用方凭证。当前服务只实现了创建接口，返回的明文 `api_key` 只在创建响应中出现一次。
+API Key 用于创建外部服务调用方凭证。创建 API Key 是管理端接口，需要管理员 JWT；返回的明文 `api_key` 只在创建响应中出现一次。
 
 ### 创建 API Key
 
@@ -636,6 +642,178 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/api-keys' \
   },
   "api_key": "acct_xxx"
 }
+```
+
+后续示例中用环境变量表示 API Key：
+
+```bash
+API_KEY='acct_xxx'
+```
+
+## 外部服务账号接口
+
+外部服务账号接口统一使用 API Key 鉴权，不接受管理员 JWT。请求头格式：
+
+```http
+Authorization: Bearer <api_key>
+```
+
+### 外部查询账号
+
+```http
+POST /api/v1/external/accounts/query
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/accounts/query' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --data-raw '{
+    "region": "us",
+    "account_type": "codex",
+    "statuses": ["active"],
+    "tags": ["openai"],
+    "min_quota_remaining": 1,
+    "limit": 10
+  }'
+```
+
+### 外部查询账号列表
+
+```http
+GET /api/v1/external/accounts
+```
+
+支持查询参数：
+
+- `region`
+- `account_type`
+- `status`，可用逗号分隔多个状态
+- `statuses`，同 `status`
+- `tags`，可用逗号分隔多个标签
+- `min_quota_remaining`
+- `limit`
+
+curl 示例：
+
+```bash
+curl -i 'http://127.0.0.1:8000/api/v1/external/accounts?region=us&account_type=codex&status=active&tags=openai&min_quota_remaining=1&limit=10' \
+  --header "Authorization: Bearer ${API_KEY}"
+```
+
+成功响应：
+
+```json
+{
+  "accounts": [
+    {
+      "id": "account-id",
+      "username": "worker@example.com",
+      "password": "plaintext-password",
+      "login_url": "https://example.com/login",
+      "access_token": "access-token",
+      "refresh_token": "refresh-token",
+      "region": "us",
+      "account_type": "codex",
+      "status": "active",
+      "quota_total": 1000,
+      "quota_used": 100,
+      "quota_remaining": 900,
+      "max_concurrent_leases": 1,
+      "tags": ["openai"],
+      "notes": "",
+      "created_at": "2026-05-25T11:00:00Z",
+      "updated_at": "2026-05-25T11:00:00Z"
+    }
+  ]
+}
+```
+
+### 外部更新账号状态
+
+```http
+POST /api/v1/external/accounts/{id}/status
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/accounts/account-id/status' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --data-raw '{
+    "status": "disabled",
+    "reason": "maintenance"
+  }'
+```
+
+成功响应：
+
+```json
+{
+  "account": {
+    "id": "account-id",
+    "username": "worker@example.com",
+    "password": "plaintext-password",
+    "login_url": "https://example.com/login",
+    "access_token": "access-token",
+    "refresh_token": "refresh-token",
+    "region": "us",
+    "account_type": "codex",
+    "status": "disabled",
+    "quota_total": 1000,
+    "quota_used": 100,
+    "quota_remaining": 900,
+    "max_concurrent_leases": 1,
+    "tags": ["openai"],
+    "notes": "",
+    "created_at": "2026-05-25T11:00:00Z",
+    "updated_at": "2026-05-25T11:05:00Z"
+  }
+}
+```
+
+### 外部申请账号租约
+
+```http
+POST /api/v1/external/accounts/acquire
+```
+
+外部接口会使用 API Key 对应的调用方 ID 作为 `caller_id`，请求体里的 `caller_id` 会被忽略。
+
+curl 示例：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/accounts/acquire' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --data-raw '{
+    "region": "us",
+    "account_type": "codex",
+    "tags": ["openai"],
+    "min_quota_remaining": 1,
+    "ttl_seconds": 900,
+    "purpose": "worker-task"
+  }'
+```
+
+### 外部释放账号租约
+
+```http
+POST /api/v1/external/accounts/release
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/accounts/release' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --data-raw "{
+    \"lease_id\": \"${LEASE_ID}\"
+  }"
 ```
 
 ## 当前未实现接口

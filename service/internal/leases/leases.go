@@ -9,6 +9,7 @@ import (
 
 	"account-service/service/internal/accounts"
 	"account-service/service/internal/audit"
+	"account-service/service/internal/httpx"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -193,11 +194,31 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Get("/api/v1/leases", service.handleList)
 }
 
+func RegisterExternalRoutes(app *fiber.App, service *Service) {
+	app.Post("/api/v1/external/accounts/acquire", service.handleExternalAcquire)
+	app.Post("/api/v1/external/accounts/release", service.handleRelease)
+}
+
 func (service *Service) handleAcquire(c fiber.Ctx) error {
 	var request AcquireRequest
 	if err := c.Bind().Body(&request); err != nil {
 		return jsonError(c, http.StatusBadRequest, "invalid_request", "Invalid acquire request")
 	}
+	lease, err := service.Acquire(request)
+	if err != nil {
+		return jsonError(c, http.StatusNotFound, "no_available_account", err.Error())
+	}
+	c.Set("X-Test-Lease-ID", lease.ID)
+	return c.Status(http.StatusOK).JSON(lease)
+}
+
+func (service *Service) handleExternalAcquire(c fiber.Ctx) error {
+	var request AcquireRequest
+	if err := c.Bind().Body(&request); err != nil {
+		return jsonError(c, http.StatusBadRequest, "invalid_request", "Invalid acquire request")
+	}
+	caller := httpx.CallerFromContext(c)
+	request.CallerID = caller.ID
 	lease, err := service.Acquire(request)
 	if err != nil {
 		return jsonError(c, http.StatusNotFound, "no_available_account", err.Error())

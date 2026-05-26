@@ -50,6 +50,13 @@ func New(options Options) *fiber.App {
 	}
 	if options.CallerStore != nil {
 		callers.RegisterRoutes(fiberApp, options.CallerStore)
+		fiberApp.Use("/api/v1/external", httpx.APIKeyAuth(options.CallerStore))
+		if options.AccountService != nil {
+			accounts.RegisterExternalRoutes(fiberApp, options.AccountService)
+		}
+		if options.LeaseService != nil {
+			leases.RegisterExternalRoutes(fiberApp, options.LeaseService)
+		}
 	}
 
 	return fiberApp

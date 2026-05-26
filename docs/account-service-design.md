@@ -243,7 +243,7 @@
 
 后端 API 服务统一使用 JSON 请求和 JSON 响应。
 
-对内部服务开放的账号 API 需要：
+对外部服务开放的账号 API 使用 `/api/v1/external` 前缀，并需要：
 
 `Authorization: Bearer <api_key>`
 
@@ -251,7 +251,19 @@
 
 ### 查询账号
 
+管理端：
+
 `POST /api/v1/accounts/query`
+
+外部服务：
+
+`POST /api/v1/external/accounts/query`
+
+外部服务也提供查询参数形式的列表接口：
+
+`GET /api/v1/external/accounts`
+
+支持 `region`、`account_type`、`status`/`statuses`、`tags`、`min_quota_remaining` 和 `limit` 查询参数；`status`、`statuses`、`tags` 支持逗号分隔多个值。
 
 请求示例：
 
@@ -270,7 +282,15 @@
 
 ### 租借账号
 
+管理端：
+
 `POST /api/v1/accounts/acquire`
+
+外部服务：
+
+`POST /api/v1/external/accounts/acquire`
+
+外部服务接口使用 API Key 对应的调用方 ID 作为 `caller_id`，不信任请求体传入的 `caller_id`。
 
 请求示例：
 
@@ -313,7 +333,13 @@
 
 ### 归还租借
 
+管理端：
+
 `POST /api/v1/accounts/release`
+
+外部服务：
+
+`POST /api/v1/external/accounts/release`
 
 请求示例：
 
@@ -343,7 +369,13 @@
 
 ### 修改账号状态
 
+管理端：
+
 `POST /api/v1/accounts/{id}/status`
+
+外部服务：
+
+`POST /api/v1/external/accounts/{id}/status`
 
 请求示例：
 

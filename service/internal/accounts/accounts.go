@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -383,6 +384,12 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Delete("/api/v1/accounts/:id", service.handleDelete)
 }
 
+func RegisterExternalRoutes(app *fiber.App, service *Service) {
+	app.Post("/api/v1/external/accounts/query", service.handleQuery)
+	app.Get("/api/v1/external/accounts", service.handleList)
+	app.Post("/api/v1/external/accounts/:id/status", service.handleStatus)
+}
+
 func (service *Service) handleQuery(c fiber.Ctx) error {
 	var request QueryRequest
 	if err := c.Bind().Body(&request); err != nil {
@@ -391,6 +398,18 @@ func (service *Service) handleQuery(c fiber.Ctx) error {
 	accounts, err := service.Query(request)
 	if err != nil {
 		return jsonError(c, http.StatusInternalServerError, "internal_error", "Failed to query accounts")
+	}
+	return c.Status(http.StatusOK).JSON(fiber.Map{"accounts": accounts})
+}
+
+func (service *Service) handleList(c fiber.Ctx) error {
+	request, err := queryRequestFromParams(c)
+	if err != nil {
+		return jsonError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	}
+	accounts, err := service.Query(request)
+	if err != nil {
+		return jsonError(c, http.StatusUnprocessableEntity, "invalid_query", err.Error())
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{"accounts": accounts})
 }
@@ -474,4 +493,60 @@ func containsAllTags(haystack []string, needles []string) bool {
 		}
 	}
 	return true
+}
+
+func queryRequestFromParams(c fiber.Ctx) (QueryRequest, error) {
+	request := QueryRequest{
+		Region:      strings.TrimSpace(c.Query("region")),
+		AccountType: AccountType(strings.TrimSpace(c.Query("account_type"))),
+		Statuses:    splitStatuses(c.Query("status")),
+		Tags:        splitCSV(c.Query("tags")),
+	}
+	if request.Statuses == nil {
+		request.Statuses = splitStatuses(c.Query("statuses"))
+	}
+
+	if limit := strings.TrimSpace(c.Query("limit")); limit != "" {
+		value, err := strconv.Atoi(limit)
+		if err != nil {
+			return QueryRequest{}, errors.New("limit must be an integer")
+		}
+		request.Limit = value
+	}
+	if minQuota := strings.TrimSpace(c.Query("min_quota_remaining")); minQuota != "" {
+		value, err := strconv.ParseInt(minQuota, 10, 64)
+		if err != nil {
+			return QueryRequest{}, errors.New("min_quota_remaining must be an integer")
+		}
+		request.MinQuotaRemaining = value
+	}
+
+	return request, nil
+}
+
+func splitStatuses(value string) []Status {
+	items := splitCSV(value)
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]Status, 0, len(items))
+	for _, item := range items {
+		out = append(out, Status(item))
+	}
+	return out
+}
+
+func splitCSV(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
 }

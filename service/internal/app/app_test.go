@@ -88,6 +88,151 @@ func TestNewProtectsManagedRoutesWithAdminAccessToken(t *testing.T) {
 	}
 }
 
+func TestNewExposesExternalRoutesWithAPIKey(t *testing.T) {
+	codec, err := security.NewCredentialCodec("0123456789abcdef0123456789abcdef")
+	if err != nil {
+		t.Fatalf("NewCredentialCodec() error = %v", err)
+	}
+	accountService := accounts.NewService(accounts.NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	createdAccount, err := accountService.Create(accounts.CreateAccountRequest{
+		Username:            "worker@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         accounts.AccountTypeCodex,
+		Status:              accounts.StatusActive,
+		QuotaRemaining:      900,
+		MaxConcurrentLeases: 1,
+		Tags:                []string{"openai"},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	leaseService := leases.NewService(accountService, 15*time.Minute, 2*time.Hour, audit.NewMemoryWriter())
+	callerStore := callers.NewMemoryStore()
+	callerResult, err := callerStore.Create("worker", "external worker")
+	if err != nil {
+		t.Fatalf("Create caller error = %v", err)
+	}
+	adminService := newTestAdminService(t)
+	app := New(Options{AdminService: adminService, AccountService: accountService, LeaseService: leaseService, CallerStore: callerStore})
+
+	missingReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/query", strings.NewReader(`{"limit":10}`))
+	missingReq.Header.Set("Content-Type", "application/json")
+	missingResp, err := app.Test(missingReq)
+	if err != nil {
+		t.Fatalf("missing api key app.Test() error = %v", err)
+	}
+	if missingResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("missing api key status = %d, want %d", missingResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/login", strings.NewReader(`{"username":"admin","password":"strongpass"}`))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginResp, err := app.Test(loginReq)
+	if err != nil {
+		t.Fatalf("login app.Test() error = %v", err)
+	}
+	var loginBody admin.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+	adminReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/query", strings.NewReader(`{"limit":10}`))
+	adminReq.Header.Set("Content-Type", "application/json")
+	adminReq.Header.Set("Authorization", "Bearer "+loginBody.AccessToken)
+	adminResp, err := app.Test(adminReq)
+	if err != nil {
+		t.Fatalf("admin token app.Test() error = %v", err)
+	}
+	if adminResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("admin token status = %d, want %d", adminResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	queryReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/query", strings.NewReader(`{"region":"us","account_type":"codex","statuses":["active"],"limit":10}`))
+	queryReq.Header.Set("Content-Type", "application/json")
+	queryReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	queryResp, err := app.Test(queryReq)
+	if err != nil {
+		t.Fatalf("query app.Test() error = %v", err)
+	}
+	if queryResp.StatusCode != http.StatusOK {
+		t.Fatalf("query status = %d, want %d", queryResp.StatusCode, http.StatusOK)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/external/accounts?region=us&account_type=codex&status=active&limit=10", nil)
+	listReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	listResp, err := app.Test(listReq)
+	if err != nil {
+		t.Fatalf("list app.Test() error = %v", err)
+	}
+	if listResp.StatusCode != http.StatusOK {
+		t.Fatalf("list status = %d, want %d", listResp.StatusCode, http.StatusOK)
+	}
+	var listBody struct {
+		Accounts []accounts.Account `json:"accounts"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listBody); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listBody.Accounts) != 1 {
+		t.Fatalf("list accounts length = %d, want 1", len(listBody.Accounts))
+	}
+	if listBody.Accounts[0].ID != createdAccount.ID {
+		t.Fatalf("list account id = %q, want %q", listBody.Accounts[0].ID, createdAccount.ID)
+	}
+
+	acquireReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/acquire", strings.NewReader(`{"region":"us","account_type":"codex","ttl_seconds":900,"caller_id":"spoofed-caller"}`))
+	acquireReq.Header.Set("Content-Type", "application/json")
+	acquireReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	acquireResp, err := app.Test(acquireReq)
+	if err != nil {
+		t.Fatalf("acquire app.Test() error = %v", err)
+	}
+	if acquireResp.StatusCode != http.StatusOK {
+		t.Fatalf("acquire status = %d, want %d", acquireResp.StatusCode, http.StatusOK)
+	}
+	var leaseBody leases.Lease
+	if err := json.NewDecoder(acquireResp.Body).Decode(&leaseBody); err != nil {
+		t.Fatalf("decode acquire response: %v", err)
+	}
+	if leaseBody.CallerID != callerResult.Caller.ID {
+		t.Fatalf("lease caller_id = %q, want authenticated caller %q", leaseBody.CallerID, callerResult.Caller.ID)
+	}
+
+	releaseReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/release", strings.NewReader(`{"lease_id":"`+leaseBody.ID+`"}`))
+	releaseReq.Header.Set("Content-Type", "application/json")
+	releaseReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	releaseResp, err := app.Test(releaseReq)
+	if err != nil {
+		t.Fatalf("release app.Test() error = %v", err)
+	}
+	if releaseResp.StatusCode != http.StatusOK {
+		t.Fatalf("release status = %d, want %d", releaseResp.StatusCode, http.StatusOK)
+	}
+
+	statusReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/"+createdAccount.ID+"/status", strings.NewReader(`{"status":"disabled","reason":"maintenance"}`))
+	statusReq.Header.Set("Content-Type", "application/json")
+	statusReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	statusResp, err := app.Test(statusReq)
+	if err != nil {
+		t.Fatalf("status app.Test() error = %v", err)
+	}
+	if statusResp.StatusCode != http.StatusOK {
+		t.Fatalf("status update status = %d, want %d", statusResp.StatusCode, http.StatusOK)
+	}
+	var statusBody struct {
+		Account accounts.Account `json:"account"`
+	}
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusBody); err != nil {
+		t.Fatalf("decode status response: %v", err)
+	}
+	if statusBody.Account.Status != accounts.StatusDisabled {
+		t.Fatalf("updated status = %q, want %q", statusBody.Account.Status, accounts.StatusDisabled)
+	}
+}
+
 func TestNewRegistersAccountRoutes(t *testing.T) {
 	codec, err := security.NewCredentialCodec("0123456789abcdef0123456789abcdef")
 	if err != nil {
