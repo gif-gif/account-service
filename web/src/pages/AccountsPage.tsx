@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, LogIn, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { AccountTypeSelect } from "../components/AccountTypeSelect";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
@@ -24,6 +24,7 @@ type DialogState =
   | { type: "view"; account: Account }
   | { type: "edit"; account: Account }
   | { type: "delete"; account: Account }
+  | { type: "kiroLogin"; account: Account }
   | null;
 
 type SecretDialogState = { title: string; value: string } | null;
@@ -41,6 +42,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [secretDialog, setSecretDialog] = useState<SecretDialogState>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [kiroLoginStatus, setKiroLoginStatus] = useState<"starting" | "running" | "canceling">("starting");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -96,6 +98,52 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
       setSaving(false);
     }
   }
+
+  function openKiroLogin(account: Account) {
+    setActionError(null);
+    setKiroLoginStatus("starting");
+    setDialog({ type: "kiroLogin", account });
+    void startKiroLogin(account);
+  }
+
+  async function startKiroLogin(account: Account) {
+    try {
+      await apiFetch<{ account_id: string; status: string }>(`/api/v1/accounts/${account.id}/kiroLogin`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setKiroLoginStatus("running");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to start Kiro login");
+    }
+  }
+
+  async function cancelKiroLogin(account: Account) {
+    setKiroLoginStatus("canceling");
+    setActionError(null);
+    try {
+      await apiFetch<{ ok: boolean }>(`/api/v1/accounts/${account.id}/cancelKiroLogin`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to cancel Kiro login");
+    } finally {
+      setDialog((current) => (current?.type === "kiroLogin" && current.account.id === account.id ? null : current));
+      setKiroLoginStatus("starting");
+    }
+  }
+
+  useEffect(() => {
+    if (dialog?.type !== "kiroLogin") {
+      return;
+    }
+    const account = dialog.account;
+    const timeout = window.setTimeout(() => {
+      void cancelKiroLogin(account);
+    }, 120_000);
+    return () => window.clearTimeout(timeout);
+  }, [dialog]);
 
   return (
     <main className="page">
@@ -198,6 +246,10 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                   <TableHead>{t("accounts.maxLeases")}</TableHead>
                   <TableHead>{t("accounts.tags")}</TableHead>
                   <TableHead>{t("accounts.notes")}</TableHead>
+                  <TableHead>{t("accounts.kiroExpiresAt")}</TableHead>
+                  <TableHead>{t("accounts.kiroProfileArn")}</TableHead>
+                  <TableHead>{t("accounts.kiroAuthMethod")}</TableHead>
+                  <TableHead>{t("accounts.kiroProvider")}</TableHead>
                   <TableHead>{t("accounts.createdAt")}</TableHead>
                   <TableHead>{t("accounts.updatedAt")}</TableHead>
                   <TableHead className="actions-col">{t("common.edit")}</TableHead>
@@ -240,10 +292,24 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                       </div>
                     </TableCell>
                     <TableCell className="wide-cell">{account.notes || "-"}</TableCell>
+                    <TableCell className="date-cell">{formatDate(account.kiro_expires_at)}</TableCell>
+                    <TableCell className="wide-cell">{account.kiro_profile_arn || "-"}</TableCell>
+                    <TableCell>{account.kiro_auth_method || "-"}</TableCell>
+                    <TableCell>{account.kiro_provider || "-"}</TableCell>
                     <TableCell className="date-cell">{formatDate(account.created_at)}</TableCell>
                     <TableCell className="date-cell">{formatDate(account.updated_at)}</TableCell>
                     <TableCell>
                       <div className="row-actions">
+                        <Button
+                          aria-label={`${t("accounts.kiroLogin")} ${account.username}`}
+                          onClick={() => openKiroLogin(account)}
+                          size="icon-sm"
+                          title={t("accounts.kiroLogin")}
+                          type="button"
+                          variant="ghost"
+                        >
+                          <LogIn />
+                        </Button>
                         <Button
                           aria-label={`${t("common.view")} ${account.username}`}
                           onClick={() => setDialog({ type: "view", account })}
@@ -287,9 +353,11 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
       <AccountDialogs
         actionError={actionError}
         dialog={dialog}
+        kiroLoginStatus={kiroLoginStatus}
         saving={saving}
         secretOpen={secretDialog !== null}
         onClose={() => setDialog(null)}
+        onCancelKiroLogin={cancelKiroLogin}
         onDelete={deleteAccount}
         onReveal={(title, value) => setSecretDialog({ title, value })}
         onSubmit={submitAccount}
@@ -303,6 +371,8 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
 function AccountDialogs({
   actionError,
   dialog,
+  kiroLoginStatus,
+  onCancelKiroLogin,
   onClose,
   onDelete,
   onReveal,
@@ -313,6 +383,8 @@ function AccountDialogs({
 }: {
   actionError: string | null;
   dialog: DialogState;
+  kiroLoginStatus: "starting" | "running" | "canceling";
+  onCancelKiroLogin: (account: Account) => Promise<void>;
   onClose: () => void;
   onDelete: (account: Account) => Promise<void>;
   onReveal: (title: string, value: string) => void;
@@ -322,7 +394,7 @@ function AccountDialogs({
   t: (key: TranslationKey) => string;
 }) {
   return (
-    <Dialog open={dialog !== null} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+    <Dialog open={dialog !== null} onOpenChange={(open) => (!open && dialog?.type !== "kiroLogin" ? onClose() : undefined)}>
       {dialog?.type === "create" ? (
         <DialogContent>
           <DialogHeader>
@@ -386,6 +458,38 @@ function AccountDialogs({
             </DialogClose>
             <Button disabled={saving} onClick={() => void onDelete(dialog.account)} type="button" variant="destructive">
               {t("accounts.deleteConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
+      {dialog?.type === "kiroLogin" ? (
+        <DialogContent
+          className="max-w-lg"
+          hideClose
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>{t("accounts.kiroLogin")}</DialogTitle>
+            <DialogDescription>
+              {t("accounts.kiroLoginDescription")} {dialog.account.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="kiro-login-panel" role="status">
+            <span className="kiro-login-spinner" aria-hidden="true" />
+            <div>
+              <p>{t(kiroLoginStatus === "canceling" ? "accounts.kiroLoginCanceling" : "accounts.kiroLoginRunning")}</p>
+              <p className="muted-text">{t("accounts.kiroLoginTimeout")}</p>
+            </div>
+          </div>
+          {actionError ? (
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>{actionError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button disabled={kiroLoginStatus === "canceling"} onClick={() => void onCancelKiroLogin(dialog.account)} type="button" variant="secondary">
+              {t("common.cancel")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -466,6 +570,10 @@ function AccountDetails({
         }
       />
       <DetailItem label={t("accounts.notes")} value={account.notes || "-"} />
+      <DetailItem label={t("accounts.kiroExpiresAt")} value={formatDate(account.kiro_expires_at)} />
+      <DetailItem label={t("accounts.kiroProfileArn")} value={account.kiro_profile_arn || "-"} />
+      <DetailItem label={t("accounts.kiroAuthMethod")} value={account.kiro_auth_method || "-"} />
+      <DetailItem label={t("accounts.kiroProvider")} value={account.kiro_provider || "-"} />
       <DetailItem label={t("accounts.createdAt")} value={formatDate(account.created_at)} />
       <DetailItem label={t("accounts.updatedAt")} value={formatDate(account.updated_at)} />
     </div>
@@ -539,7 +647,7 @@ function AccountForm({
         </Label>
         <Label className="form-row">
           {t("accounts.status")}
-          <select className="ui-select" defaultValue={account?.status ?? "active"} name="status">
+          <select className="ui-select" defaultValue={account?.status ?? "disabled"} name="status">
             {accountStatuses.map((status) => (
               <option key={status} value={status}>
                 {status}
@@ -638,7 +746,7 @@ function accountPayload(form: FormData) {
     refresh_token: stringValue(form, "refresh_token"),
     region: stringValue(form, "region"),
     account_type: stringValue(form, "account_type"),
-    status: stringValue(form, "status") || "active",
+    status: stringValue(form, "status") || "disabled",
     quota_total: numberValue(form, "quota_total"),
     quota_used: numberValue(form, "quota_used"),
     quota_remaining: numberValue(form, "quota_remaining"),

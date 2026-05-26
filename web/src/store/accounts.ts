@@ -22,6 +22,10 @@ export type Account = {
   max_concurrent_leases?: number;
   tags: string[];
   notes?: string;
+  kiro_expires_at?: string;
+  kiro_profile_arn?: string;
+  kiro_auth_method?: string;
+  kiro_provider?: string;
   created_at?: string;
   updated_at?: string;
 };

@@ -85,6 +85,26 @@ func TestInitMigrationConstrainsAccountType(t *testing.T) {
 	}
 }
 
+func TestInitMigrationIncludesKiroConfigColumns(t *testing.T) {
+	sqlBytes, err := migrationFiles.ReadFile("migrations/000001_init.sql")
+	if err != nil {
+		t.Fatalf("read init migration: %v", err)
+	}
+	sql := string(sqlBytes)
+
+	requiredFragments := []string{
+		"kiro_expires_at timestamptz",
+		"kiro_profile_arn text not null default ''",
+		"kiro_auth_method text not null default ''",
+		"kiro_provider text not null default ''",
+	}
+	for _, fragment := range requiredFragments {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("init migration missing kiro config column fragment %q", fragment)
+		}
+	}
+}
+
 func TestInitMigrationSeedsDefaultAdminUser(t *testing.T) {
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {

@@ -1,10 +1,12 @@
 package accounts
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"account-service/service/internal/audit"
 	"account-service/service/internal/security"
@@ -76,6 +78,111 @@ func TestRepositoryCreateGetUpdateAndQuery(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].ID != created.ID {
 		t.Fatalf("Query() = %#v, want created account", results)
+	}
+}
+
+func TestCreateDefaultsStatusToDisabled(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+
+	created, err := svc.Create(CreateAccountRequest{
+		Username:            "user@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         AccountTypeKiro,
+		MaxConcurrentLeases: 1,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if created.Status != StatusDisabled {
+		t.Fatalf("Status = %q, want %q", created.Status, StatusDisabled)
+	}
+}
+
+func TestKiroLoginUpdatesAccountOnSuccess(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{
+		success: true,
+		config: &KiroCliConfig{
+			AccessToken:  "kiro-access",
+			RefreshToken: "kiro-refresh",
+			ExpiresAt:    time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+			ProfileARN:   "arn:aws:iam::123456789012:role/Kiro",
+			AuthMethod:   "device",
+			Provider:     "google",
+		},
+		done: make(chan struct{}),
+	}
+	svc.SetKiroLoginRunner(runner)
+	account := createTestAccount(t, svc, StatusDisabled)
+
+	result, err := svc.StartKiroLogin(account.ID)
+	if err != nil {
+		t.Fatalf("StartKiroLogin() error = %v", err)
+	}
+	if result.Status != "running" {
+		t.Fatalf("login status = %q, want running", result.Status)
+	}
+	waitForFakeRunner(t, runner)
+
+	updated, err := svc.Get(account.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if updated.Status != StatusActive {
+		t.Fatalf("Status = %q, want %q", updated.Status, StatusActive)
+	}
+	if updated.AccessToken != "kiro-access" || updated.RefreshToken != "kiro-refresh" {
+		t.Fatalf("tokens were not updated: access=%q refresh=%q", updated.AccessToken, updated.RefreshToken)
+	}
+	if updated.KiroProfileARN != "arn:aws:iam::123456789012:role/Kiro" {
+		t.Fatalf("KiroProfileARN = %q", updated.KiroProfileARN)
+	}
+	if updated.KiroAuthMethod != "device" || updated.KiroProvider != "google" {
+		t.Fatalf("kiro config was not updated: %#v", updated)
+	}
+	if updated.KiroExpiresAt == nil || !updated.KiroExpiresAt.Equal(runner.config.ExpiresAt) {
+		t.Fatalf("KiroExpiresAt = %v, want %v", updated.KiroExpiresAt, runner.config.ExpiresAt)
+	}
+}
+
+func TestKiroLoginMarksAccountFailedOnFailure(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{success: false, done: make(chan struct{})}
+	svc.SetKiroLoginRunner(runner)
+	account := createTestAccount(t, svc, StatusDisabled)
+
+	if _, err := svc.StartKiroLogin(account.ID); err != nil {
+		t.Fatalf("StartKiroLogin() error = %v", err)
+	}
+	waitForFakeRunner(t, runner)
+
+	updated, err := svc.Get(account.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if updated.Status != StatusLoginFailed {
+		t.Fatalf("Status = %q, want %q", updated.Status, StatusLoginFailed)
+	}
+}
+
+func TestCancelKiroLoginCallsRunnerCancel(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{success: false, done: make(chan struct{})}
+	svc.SetKiroLoginRunner(runner)
+
+	if err := svc.CancelKiroLogin("account-id"); err != nil {
+		t.Fatalf("CancelKiroLogin() error = %v", err)
+	}
+	if runner.cancelCalls != 1 {
+		t.Fatalf("cancelCalls = %d, want 1", runner.cancelCalls)
 	}
 }
 
@@ -194,6 +301,42 @@ func TestHandlersExposeAccountAPI(t *testing.T) {
 	}
 }
 
+func TestHandlersExposeKiroLoginAPI(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{success: false, done: make(chan struct{})}
+	svc.SetKiroLoginRunner(runner)
+	account := createTestAccount(t, svc, StatusDisabled)
+	app := fiber.New()
+	RegisterRoutes(app, svc)
+
+	loginResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/"+account.ID+"/kiroLogin", `{}`))
+	if err != nil {
+		t.Fatalf("kiroLogin app.Test() error = %v", err)
+	}
+	if loginResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("kiroLogin status = %d, want %d", loginResp.StatusCode, http.StatusAccepted)
+	}
+	var loginBody KiroLoginResult
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+	if loginBody.AccountID != account.ID || loginBody.Status != "running" {
+		t.Fatalf("login response = %#v", loginBody)
+	}
+
+	cancelResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/"+account.ID+"/cancelKiroLogin", `{}`))
+	if err != nil {
+		t.Fatalf("cancelKiroLogin app.Test() error = %v", err)
+	}
+	if cancelResp.StatusCode != http.StatusOK {
+		t.Fatalf("cancel status = %d, want %d", cancelResp.StatusCode, http.StatusOK)
+	}
+	if runner.cancelCalls != 1 {
+		t.Fatalf("cancelCalls = %d, want 1", runner.cancelCalls)
+	}
+}
+
 func mustCodec(t *testing.T) security.CredentialCodec {
 	t.Helper()
 	codec, err := security.NewCredentialCodec("0123456789abcdef0123456789abcdef")
@@ -209,6 +352,50 @@ func ptr(status Status) *Status {
 
 func ptrInt64(value int64) *int64 {
 	return &value
+}
+
+type fakeKiroLoginRunner struct {
+	success     bool
+	config      *KiroCliConfig
+	done        chan struct{}
+	cancelCalls int
+}
+
+func (runner *fakeKiroLoginRunner) KiroCliLogin() (bool, *KiroCliConfig) {
+	defer close(runner.done)
+	return runner.success, runner.config
+}
+
+func (runner *fakeKiroLoginRunner) Cancel() {
+	runner.cancelCalls++
+}
+
+func createTestAccount(t *testing.T, svc *Service, status Status) Account {
+	t.Helper()
+	account, err := svc.Create(CreateAccountRequest{
+		Username:            "user@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         AccountTypeKiro,
+		Status:              status,
+		MaxConcurrentLeases: 1,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	return account
+}
+
+func waitForFakeRunner(t *testing.T, runner *fakeKiroLoginRunner) {
+	t.Helper()
+	select {
+	case <-runner.done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for fake kiro runner")
+	}
 }
 
 func jsonRequest(method string, path string, body string) *http.Request {

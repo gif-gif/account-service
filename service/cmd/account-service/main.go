@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	os.Setenv("PROXY_API_KEY", "local-test-proxy-key")
+
 }
 
 func main() {

@@ -652,7 +652,7 @@ input {
 }
 
 .actions-col {
-  width: 118px;
+  width: 154px;
   text-align: right;
 }
 
@@ -716,6 +716,36 @@ input {
   padding: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.kiro-login-panel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  padding: 14px;
+}
+
+.kiro-login-panel p {
+  margin: 0;
+}
+
+.kiro-login-spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 2px solid #cbd5e1;
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 [data-slot="table-container"] {

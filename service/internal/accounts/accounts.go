@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"account-service/service/internal/audit"
+	"account-service/service/internal/auth"
 	"account-service/service/internal/security"
 
 	"github.com/gofiber/fiber/v3"
@@ -73,6 +74,10 @@ type Account struct {
 	MaxConcurrentLeases int         `json:"max_concurrent_leases"`
 	Tags                []string    `json:"tags"`
 	Notes               string      `json:"notes"`
+	KiroExpiresAt       *time.Time  `json:"kiro_expires_at,omitempty"`
+	KiroProfileARN      string      `json:"kiro_profile_arn"`
+	KiroAuthMethod      string      `json:"kiro_auth_method"`
+	KiroProvider        string      `json:"kiro_provider"`
 	CreatedAt           time.Time   `json:"created_at"`
 	UpdatedAt           time.Time   `json:"updated_at"`
 }
@@ -99,6 +104,10 @@ type CreateAccountRequest struct {
 	MaxConcurrentLeases int         `json:"max_concurrent_leases"`
 	Tags                []string    `json:"tags"`
 	Notes               string      `json:"notes"`
+	KiroExpiresAt       *time.Time  `json:"kiro_expires_at"`
+	KiroProfileARN      string      `json:"kiro_profile_arn"`
+	KiroAuthMethod      string      `json:"kiro_auth_method"`
+	KiroProvider        string      `json:"kiro_provider"`
 }
 
 type UpdateAccountRequest struct {
@@ -116,6 +125,10 @@ type UpdateAccountRequest struct {
 	MaxConcurrentLeases *int         `json:"max_concurrent_leases"`
 	Tags                []string     `json:"tags"`
 	Notes               *string      `json:"notes"`
+	KiroExpiresAt       *time.Time   `json:"kiro_expires_at"`
+	KiroProfileARN      *string      `json:"kiro_profile_arn"`
+	KiroAuthMethod      *string      `json:"kiro_auth_method"`
+	KiroProvider        *string      `json:"kiro_provider"`
 }
 
 type QueryRequest struct {
@@ -125,6 +138,25 @@ type QueryRequest struct {
 	Tags              []string    `json:"tags"`
 	MinQuotaRemaining int64       `json:"min_quota_remaining"`
 	Limit             int         `json:"limit"`
+}
+
+type KiroCliConfig struct {
+	AccessToken  string    `json:"accessToken"`
+	RefreshToken string    `json:"refreshToken"`
+	ExpiresAt    time.Time `json:"expiresAt"`
+	ProfileARN   string    `json:"profileArn"`
+	AuthMethod   string    `json:"authMethod"`
+	Provider     string    `json:"provider"`
+}
+
+type KiroLoginRunner interface {
+	KiroCliLogin() (bool, *KiroCliConfig)
+	Cancel()
+}
+
+type KiroLoginResult struct {
+	AccountID string `json:"account_id"`
+	Status    string `json:"status"`
 }
 
 type MemoryRepository struct {
@@ -145,19 +177,24 @@ func (repo *MemoryRepository) Raw(id string) (StoredAccount, bool) {
 }
 
 type Service struct {
-	repo  *MemoryRepository
-	codec security.CredentialCodec
-	audit audit.Writer
+	repo            *MemoryRepository
+	codec           security.CredentialCodec
+	audit           audit.Writer
+	kiroLoginRunner KiroLoginRunner
 }
 
 func NewService(repo *MemoryRepository, codec security.CredentialCodec, auditWriter audit.Writer) *Service {
-	return &Service{repo: repo, codec: codec, audit: auditWriter}
+	return &Service{repo: repo, codec: codec, audit: auditWriter, kiroLoginRunner: authKiroRunner{}}
+}
+
+func (service *Service) SetKiroLoginRunner(runner KiroLoginRunner) {
+	service.kiroLoginRunner = runner
 }
 
 func (service *Service) Create(request CreateAccountRequest) (Account, error) {
 	status := request.Status
 	if status == "" {
-		status = StatusActive
+		status = StatusDisabled
 	}
 	if !validStatuses[status] {
 		return Account{}, errors.New("invalid account status")
@@ -197,6 +234,10 @@ func (service *Service) Create(request CreateAccountRequest) (Account, error) {
 			MaxConcurrentLeases: request.MaxConcurrentLeases,
 			Tags:                normalizeTags(request.Tags),
 			Notes:               request.Notes,
+			KiroExpiresAt:       request.KiroExpiresAt,
+			KiroProfileARN:      request.KiroProfileARN,
+			KiroAuthMethod:      request.KiroAuthMethod,
+			KiroProvider:        request.KiroProvider,
 			CreatedAt:           now,
 			UpdatedAt:           now,
 		},
@@ -293,6 +334,18 @@ func (service *Service) Update(id string, request UpdateAccountRequest) (Account
 	if request.Notes != nil {
 		account.Notes = *request.Notes
 	}
+	if request.KiroExpiresAt != nil {
+		account.KiroExpiresAt = request.KiroExpiresAt
+	}
+	if request.KiroProfileARN != nil {
+		account.KiroProfileARN = *request.KiroProfileARN
+	}
+	if request.KiroAuthMethod != nil {
+		account.KiroAuthMethod = *request.KiroAuthMethod
+	}
+	if request.KiroProvider != nil {
+		account.KiroProvider = *request.KiroProvider
+	}
 	account.UpdatedAt = time.Now()
 	service.repo.accounts[id] = account
 	service.repo.mu.Unlock()
@@ -357,6 +410,42 @@ func (service *Service) Query(request QueryRequest) ([]Account, error) {
 	return out, nil
 }
 
+func (service *Service) StartKiroLogin(accountID string) (KiroLoginResult, error) {
+	if _, err := service.Get(accountID); err != nil {
+		return KiroLoginResult{}, err
+	}
+	runner := service.kiroLoginRunner
+	if runner == nil {
+		runner = authKiroRunner{}
+	}
+	go func() {
+		success, config := runner.KiroCliLogin()
+		if success && config != nil {
+			_, _ = service.Update(accountID, UpdateAccountRequest{
+				AccessToken:    &config.AccessToken,
+				RefreshToken:   &config.RefreshToken,
+				Status:         ptrStatus(StatusActive),
+				KiroExpiresAt:  &config.ExpiresAt,
+				KiroProfileARN: &config.ProfileARN,
+				KiroAuthMethod: &config.AuthMethod,
+				KiroProvider:   &config.Provider,
+			})
+			return
+		}
+		_, _ = service.Update(accountID, UpdateAccountRequest{Status: ptrStatus(StatusLoginFailed)})
+	}()
+	return KiroLoginResult{AccountID: accountID, Status: "running"}, nil
+}
+
+func (service *Service) CancelKiroLogin(accountID string) error {
+	runner := service.kiroLoginRunner
+	if runner == nil {
+		runner = authKiroRunner{}
+	}
+	runner.Cancel()
+	return nil
+}
+
 func (service *Service) decrypt(account StoredAccount) (Account, error) {
 	out := account.Account
 	var err error
@@ -381,6 +470,8 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Get("/api/v1/accounts/:id", service.handleGet)
 	app.Patch("/api/v1/accounts/:id", service.handleUpdate)
 	app.Post("/api/v1/accounts/:id/status", service.handleStatus)
+	app.Post("/api/v1/accounts/:id/kiroLogin", service.handleKiroLogin)
+	app.Post("/api/v1/accounts/:id/cancelKiroLogin", service.handleCancelKiroLogin)
 	app.Delete("/api/v1/accounts/:id", service.handleDelete)
 }
 
@@ -460,6 +551,21 @@ func (service *Service) handleStatus(c fiber.Ctx) error {
 		return jsonError(c, http.StatusUnprocessableEntity, "invalid_status", err.Error())
 	}
 	return c.Status(http.StatusOK).JSON(fiber.Map{"account": account})
+}
+
+func (service *Service) handleKiroLogin(c fiber.Ctx) error {
+	result, err := service.StartKiroLogin(c.Params("id"))
+	if err != nil {
+		return jsonError(c, http.StatusNotFound, "account_not_found", "Account not found")
+	}
+	return c.Status(http.StatusAccepted).JSON(result)
+}
+
+func (service *Service) handleCancelKiroLogin(c fiber.Ctx) error {
+	if err := service.CancelKiroLogin(c.Params("id")); err != nil {
+		return jsonError(c, http.StatusConflict, "kiro_login_cancel_failed", err.Error())
+	}
+	return c.Status(http.StatusOK).JSON(fiber.Map{"ok": true})
 }
 
 func (service *Service) handleDelete(c fiber.Ctx) error {
@@ -549,4 +655,29 @@ func splitCSV(value string) []string {
 		}
 	}
 	return out
+}
+
+func ptrStatus(status Status) *Status {
+	return &status
+}
+
+type authKiroRunner struct{}
+
+func (authKiroRunner) KiroCliLogin() (bool, *KiroCliConfig) {
+	success, config := auth.Kiro.KiroCliLogin()
+	if config == nil {
+		return success, nil
+	}
+	return success, &KiroCliConfig{
+		AccessToken:  config.AccessToken,
+		RefreshToken: config.RefreshToken,
+		ExpiresAt:    config.ExpiresAt,
+		ProfileARN:   config.ProfileArn,
+		AuthMethod:   config.AuthMethod,
+		Provider:     config.Provider,
+	}
+}
+
+func (authKiroRunner) Cancel() {
+	auth.Kiro.Cancel()
 }

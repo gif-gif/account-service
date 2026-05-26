@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountsPage } from "./AccountsPage";
 import { clearAuthTokens, setAuthTokens } from "../lib/authTokens";
@@ -11,6 +11,10 @@ describe("AccountsPage", () => {
     vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
     clearAuthTokens();
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   async function selectDropdownOption(control: HTMLElement, option: string) {
@@ -285,6 +289,114 @@ describe("AccountsPage", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/accounts/account-id", expect.objectContaining({ method: "DELETE" })),
     );
+  });
+
+  it("starts kiro login and cancels from the login dialog", async () => {
+    setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            accounts: [
+              {
+                id: "account-id",
+                username: "user@example.com",
+                password: "plain-password",
+                login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
+                region: "us",
+                account_type: "kiro",
+                status: "disabled",
+                quota_remaining: 900,
+                quota_total: 1000,
+                quota_used: 100,
+                max_concurrent_leases: 1,
+                tags: ["kiro"],
+                notes: "primary",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AccountsPage store={createAccountsStore()} />);
+
+    await screen.findByText("user@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    const loginDialog = screen.getByRole("dialog", { name: "账号登录" });
+    expect(loginDialog).toHaveTextContent("user@example.com");
+    expect(within(loginDialog).queryByText("Close dialog")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/kiroLogin",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await userEvent.click(within(loginDialog).getByRole("button", { name: "取消" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.example.com/api/v1/accounts/account-id/cancelKiroLogin",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument();
+  });
+
+  it("auto cancels kiro login after two minutes", async () => {
+    setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            accounts: [
+              {
+                id: "account-id",
+                username: "user@example.com",
+                password: "plain-password",
+                login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
+                region: "us",
+                account_type: "kiro",
+                status: "disabled",
+                quota_remaining: 900,
+                quota_total: 1000,
+                quota_used: 100,
+                max_concurrent_leases: 1,
+                tags: ["kiro"],
+                notes: "primary",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AccountsPage store={createAccountsStore()} />);
+
+    await screen.findByText("user@example.com");
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    expect(screen.getByRole("dialog", { name: "账号登录" })).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/cancelKiroLogin",
+      expect.objectContaining({ method: "POST" }),
+    );
+    vi.useRealTimers();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument());
   });
 
   it("shows backend errors", async () => {

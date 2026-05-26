@@ -18,6 +18,10 @@ create table if not exists accounts (
     tags text[] not null default '{}',
     metadata jsonb not null default '{}',
     notes text not null default '',
+    kiro_expires_at timestamptz,
+    kiro_profile_arn text not null default '',
+    kiro_auth_method text not null default '',
+    kiro_provider text not null default '',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
