@@ -129,6 +129,7 @@ func TestKiroLoginUpdatesAccountOnSuccess(t *testing.T) {
 		t.Fatalf("login status = %q, want running", result.Status)
 	}
 	waitForFakeRunner(t, runner)
+	waitForAccountStatus(t, svc, account.ID, StatusActive)
 
 	updated, err := svc.Get(account.ID)
 	if err != nil {
@@ -162,6 +163,7 @@ func TestKiroLoginMarksAccountFailedOnFailure(t *testing.T) {
 		t.Fatalf("StartKiroLogin() error = %v", err)
 	}
 	waitForFakeRunner(t, runner)
+	waitForAccountStatus(t, svc, account.ID, StatusLoginFailed)
 
 	updated, err := svc.Get(account.ID)
 	if err != nil {
@@ -396,6 +398,26 @@ func waitForFakeRunner(t *testing.T, runner *fakeKiroLoginRunner) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for fake kiro runner")
 	}
+}
+
+func waitForAccountStatus(t *testing.T, svc *Service, accountID string, status Status) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		account, err := svc.Get(accountID)
+		if err != nil {
+			t.Fatalf("Get() error = %v", err)
+		}
+		if account.Status == status {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	account, err := svc.Get(accountID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	t.Fatalf("Status = %q, want %q", account.Status, status)
 }
 
 func jsonRequest(method string, path string, body string) *http.Request {

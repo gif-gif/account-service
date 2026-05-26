@@ -21,7 +21,7 @@ var Kiro = KiroCli{}
 
 const authTokenPath = "~/.aws/sso/cache/kiro-auth-token-cli.json"
 
-var kiroLoginURLPattern = regexp.MustCompile(`https://(?:app\.kiro\.dev/account/device\?user_code=[A-Z0-9-]+&login_provider=[a-zA-Z]+|view\.awsapps\.com/start/#/device\?user_code=[A-Z0-9-]+)`)
+var kiroLoginURLPattern = regexp.MustCompile(`https://view\.awsapps\.com/start/#/device\?user_code=[A-Z0-9-]+`)
 
 type kiroAuthStatus string
 
@@ -127,7 +127,8 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 
 	// ================== 启动进程 ==================
 	logKiroInfo("正在启动 kiro-cli login")
-	cmd := exec.CommandContext(ctx, "kiro-cli", "login")
+	cmd := kiroLoginCommand()
+	cmd = exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -173,7 +174,7 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 
 	// ================== 阶段二：等待授权 (2分钟超时 + Context 监听) ==================
 	authTimeout := 2 * time.Minute
-	logKiroInfof("进入阶段三：等待授权 (超时: %v)", authTimeout)
+	logKiroInfof("进入阶段二：等待授权 (超时: %v)", authTimeout)
 
 	text, err = waitForPTYOutput(ctx, chunks, authTimeout, &output, func(text string) (bool, error) {
 		switch kiroAuthOutputStatus(text) {
@@ -198,13 +199,17 @@ func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 	}
 
 	if kiroAuthOutputStatus(text) == kiroAuthSucceeded {
-		logKiroInfo("登录成功，检测到 Signed in with Google")
+		logKiroInfo("登录成功，检测到 Logged in successfully")
 		_ = cmd.Wait()
 		return true
 	}
 
 	killProcess(cmd)
 	return false
+}
+
+func kiroLoginCommand() *exec.Cmd {
+	return exec.Command("kiro-cli", "login", "--use-device-flow")
 }
 
 func killProcess(cmd *exec.Cmd) {
