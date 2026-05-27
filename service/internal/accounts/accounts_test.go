@@ -94,7 +94,7 @@ func TestCreateDefaultsStatusToDisabled(t *testing.T) {
 		AccessToken:         "access-token",
 		RefreshToken:        "refresh-token",
 		Region:              "us",
-		AccountType:         AccountTypeKiro,
+		AccountType:         AccountTypeKiroAWS,
 		MaxConcurrentLeases: 1,
 	})
 	if err != nil {
@@ -102,6 +102,39 @@ func TestCreateDefaultsStatusToDisabled(t *testing.T) {
 	}
 	if created.Status != StatusDisabled {
 		t.Fatalf("Status = %q, want %q", created.Status, StatusDisabled)
+	}
+}
+
+func TestAccountTypeKiroVariants(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+
+	for _, accountType := range []AccountType{AccountTypeKiroAWS, AccountTypeKiroOffical} {
+		if _, err := svc.Create(CreateAccountRequest{
+			Username:            "user@example.com",
+			Password:            "plain-password",
+			LoginURL:            "https://example.com/login",
+			AccessToken:         "access-token",
+			RefreshToken:        "refresh-token",
+			Region:              "us",
+			AccountType:         accountType,
+			MaxConcurrentLeases: 1,
+		}); err != nil {
+			t.Fatalf("Create() with account type %q error = %v", accountType, err)
+		}
+	}
+
+	if _, err := svc.Create(CreateAccountRequest{
+		Username:            "user@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         "kiro",
+		MaxConcurrentLeases: 1,
+	}); err == nil {
+		t.Fatal("expected legacy kiro account type to be rejected")
 	}
 }
 
@@ -473,7 +506,7 @@ func createTestAccount(t *testing.T, svc *Service, status Status) Account {
 		AccessToken:         "access-token",
 		RefreshToken:        "refresh-token",
 		Region:              "us",
-		AccountType:         AccountTypeKiro,
+		AccountType:         AccountTypeKiroAWS,
 		Status:              status,
 		MaxConcurrentLeases: 1,
 	})

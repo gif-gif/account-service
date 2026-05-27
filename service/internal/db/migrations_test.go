@@ -79,7 +79,7 @@ func TestInitMigrationConstrainsAccountType(t *testing.T) {
 	}
 	sql := string(sqlBytes)
 
-	requiredFragment := "account_type text not null check (account_type in ('claude', 'aws', 'gpt', 'kiro', 'claudecode', 'codex'))"
+	requiredFragment := "account_type text not null check (account_type in ('claude', 'aws', 'gpt', 'kiro-aws', 'kiro-offical', 'claudecode', 'codex'))"
 	if !strings.Contains(sql, requiredFragment) {
 		t.Fatalf("init migration missing account type enum constraint")
 	}

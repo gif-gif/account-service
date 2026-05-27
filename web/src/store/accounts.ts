@@ -2,7 +2,7 @@ import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { APIError, apiFetch } from "../lib/api";
 
-export const accountTypes = ["claude", "aws", "gpt", "kiro", "claudecode", "codex"] as const;
+export const accountTypes = ["claude", "aws", "gpt", "kiro-aws", "kiro-offical", "claudecode", "codex"] as const;
 
 export type AccountType = (typeof accountTypes)[number];
 

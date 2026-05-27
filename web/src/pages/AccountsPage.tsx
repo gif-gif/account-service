@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { Eye, LogIn, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, Plus, Search } from "lucide-react";
 
 import { AccountTypeSelect } from "../components/AccountTypeSelect";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
@@ -24,12 +24,14 @@ type DialogState =
   | { type: "view"; account: Account }
   | { type: "edit"; account: Account }
   | { type: "delete"; account: Account }
+  | { type: "confirmKiroLogin"; account: Account }
   | { type: "kiroLogin"; account: Account }
   | null;
 
 type SecretDialogState = { title: string; value: string } | null;
 
 const accountStatuses = ["active", "disabled", "exhausted", "login_failed", "token_expired", "region_blocked", "error"] as const;
+const kiroLoginAccountTypes = new Set(["kiro-aws", "kiro-offical"]);
 
 export function AccountsPage({ store = useAccountsStore }: Props) {
   const { t } = useI18n();
@@ -326,45 +328,43 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
                     <TableCell className="date-cell">{formatDate(account.updated_at)}</TableCell>
                     <TableCell>
                       <div className="row-actions">
-                        <Button
-                          aria-label={`${t("accounts.kiroLogin")} ${account.username}`}
-                          onClick={() => openKiroLogin(account)}
-                          size="icon-sm"
-                          title={t("accounts.kiroLogin")}
-                          type="button"
-                          variant="ghost"
-                        >
-                          <LogIn />
-                        </Button>
+                        {kiroLoginAccountTypes.has(account.account_type) ? (
+                          <Button
+                            aria-label={`${t("accounts.kiroLogin")} ${account.username}`}
+                            onClick={() => setDialog({ type: "confirmKiroLogin", account })}
+                            size="xs"
+                            type="button"
+                            variant="secondary"
+                          >
+                            {t("accounts.kiroLogin")}
+                          </Button>
+                        ) : null}
                         <Button
                           aria-label={`${t("common.view")} ${account.username}`}
                           onClick={() => setDialog({ type: "view", account })}
-                          size="icon-sm"
-                          title={t("common.view")}
+                          size="xs"
                           type="button"
                           variant="ghost"
                         >
-                          <Eye />
+                          {t("common.view")}
                         </Button>
                         <Button
                           aria-label={`${t("common.edit")} ${account.username}`}
                           onClick={() => setDialog({ type: "edit", account })}
-                          size="icon-sm"
-                          title={t("common.edit")}
+                          size="xs"
                           type="button"
                           variant="ghost"
                         >
-                          <Pencil />
+                          {t("common.edit")}
                         </Button>
                         <Button
                           aria-label={`${t("common.delete")} ${account.username}`}
                           onClick={() => setDialog({ type: "delete", account })}
-                          size="icon-sm"
-                          title={t("common.delete")}
+                          size="xs"
                           type="button"
                           variant="ghost"
                         >
-                          <Trash2 />
+                          {t("common.delete")}
                         </Button>
                       </div>
                     </TableCell>
@@ -386,6 +386,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         onCancelKiroLogin={cancelKiroLogin}
         onDelete={deleteAccount}
         onReveal={(title, value) => setSecretDialog({ title, value })}
+        onStartKiroLogin={openKiroLogin}
         onSubmit={submitAccount}
         t={t}
       />
@@ -402,6 +403,7 @@ function AccountDialogs({
   onClose,
   onDelete,
   onReveal,
+  onStartKiroLogin,
   onSubmit,
   saving,
   secretOpen,
@@ -414,6 +416,7 @@ function AccountDialogs({
   onClose: () => void;
   onDelete: (account: Account) => Promise<void>;
   onReveal: (title: string, value: string) => void;
+  onStartKiroLogin: (account: Account) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>, account?: Account) => Promise<void>;
   saving: boolean;
   secretOpen: boolean;
@@ -484,6 +487,26 @@ function AccountDialogs({
             </DialogClose>
             <Button disabled={saving} onClick={() => void onDelete(dialog.account)} type="button" variant="destructive">
               {t("accounts.deleteConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
+      {dialog?.type === "confirmKiroLogin" ? (
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("accounts.kiroLoginConfirmTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("accounts.kiroLoginConfirmDescription")} {dialog.account.username}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                {t("common.cancel")}
+              </Button>
+            </DialogClose>
+            <Button onClick={() => onStartKiroLogin(dialog.account)} type="button">
+              {t("accounts.kiroLoginConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

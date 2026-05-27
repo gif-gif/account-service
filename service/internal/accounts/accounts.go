@@ -32,12 +32,13 @@ const (
 )
 
 const (
-	AccountTypeClaude     AccountType = "claude"
-	AccountTypeAWS        AccountType = "aws"
-	AccountTypeGPT        AccountType = "gpt"
-	AccountTypeKiro       AccountType = "kiro"
-	AccountTypeClaudeCode AccountType = "claudecode"
-	AccountTypeCodex      AccountType = "codex"
+	AccountTypeClaude      AccountType = "claude"
+	AccountTypeAWS         AccountType = "aws"
+	AccountTypeGPT         AccountType = "gpt"
+	AccountTypeKiroAWS     AccountType = "kiro-aws"
+	AccountTypeKiroOffical AccountType = "kiro-offical"
+	AccountTypeClaudeCode  AccountType = "claudecode"
+	AccountTypeCodex       AccountType = "codex"
 )
 
 var validStatuses = map[Status]bool{
@@ -51,12 +52,13 @@ var validStatuses = map[Status]bool{
 }
 
 var validAccountTypes = map[AccountType]bool{
-	AccountTypeClaude:     true,
-	AccountTypeAWS:        true,
-	AccountTypeGPT:        true,
-	AccountTypeKiro:       true,
-	AccountTypeClaudeCode: true,
-	AccountTypeCodex:      true,
+	AccountTypeClaude:      true,
+	AccountTypeAWS:         true,
+	AccountTypeGPT:         true,
+	AccountTypeKiroAWS:     true,
+	AccountTypeKiroOffical: true,
+	AccountTypeClaudeCode:  true,
+	AccountTypeCodex:       true,
 }
 
 type Account struct {

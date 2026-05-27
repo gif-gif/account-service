@@ -249,7 +249,8 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/admin/logout' \
 - `claude`
 - `aws`
 - `gpt`
-- `kiro`
+- `kiro-aws`
+- `kiro-offical`
 - `claudecode`
 - `codex`
 
@@ -342,7 +343,7 @@ POST /api/v1/accounts/query
 请求体字段：
 
 - `region`：按区域过滤，可为空
-- `account_type`：按账号类型过滤，可为空；可选值为 `claude`、`aws`、`gpt`、`kiro`、`claudecode`、`codex`
+- `account_type`：按账号类型过滤，可为空；可选值为 `claude`、`aws`、`gpt`、`kiro-aws`、`kiro-offical`、`claudecode`、`codex`
 - `statuses`：按状态列表过滤，可为空
 - `tags`：要求账号包含所有标签，可为空
 - `min_quota_remaining`：最小剩余额度

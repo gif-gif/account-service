@@ -205,7 +205,7 @@ describe("AccountsPage", () => {
     await userEvent.type(within(createDialog).getByLabelText("Refresh Token"), "provider-refresh");
     await userEvent.type(within(createDialog).getByLabelText("区域"), "eu");
     expect(within(createDialog).getByLabelText("账号类型")).toHaveAttribute("data-slot", "select-trigger");
-    await selectDropdownOption(within(createDialog).getByLabelText("账号类型"), "kiro");
+    await selectDropdownOption(within(createDialog).getByLabelText("账号类型"), "kiro-aws");
     await userEvent.selectOptions(within(createDialog).getByLabelText("状态"), "login_failed");
     await userEvent.type(within(createDialog).getByLabelText("剩余额度"), "500");
     await userEvent.click(within(createDialog).getByRole("button", { name: "创建" }));
@@ -221,7 +221,7 @@ describe("AccountsPage", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.example.com/api/v1/accounts",
       expect.objectContaining({
-        body: expect.stringContaining('"account_type":"kiro"'),
+        body: expect.stringContaining('"account_type":"kiro-aws"'),
         method: "POST",
       }),
     );
@@ -291,7 +291,7 @@ describe("AccountsPage", () => {
     );
   });
 
-  it("starts kiro login and cancels from the login dialog", async () => {
+  it("shows login only for kiro account types and requires confirmation", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi
       .fn()
@@ -307,7 +307,7 @@ describe("AccountsPage", () => {
                 access_token: "provider-access",
                 refresh_token: "provider-refresh",
                 region: "us",
-                account_type: "kiro",
+                account_type: "kiro-aws",
                 status: "disabled",
                 quota_remaining: 900,
                 quota_total: 1000,
@@ -315,6 +315,23 @@ describe("AccountsPage", () => {
                 max_concurrent_leases: 1,
                 tags: ["kiro"],
                 notes: "primary",
+              },
+              {
+                id: "codex-account-id",
+                username: "codex@example.com",
+                password: "plain-password",
+                login_url: "https://example.com/login",
+                access_token: "provider-access",
+                refresh_token: "provider-refresh",
+                region: "us",
+                account_type: "codex",
+                status: "disabled",
+                quota_remaining: 900,
+                quota_total: 1000,
+                quota_used: 100,
+                max_concurrent_leases: 1,
+                tags: ["codex"],
+                notes: "secondary",
               },
             ],
           }),
@@ -328,7 +345,18 @@ describe("AccountsPage", () => {
     render(<AccountsPage store={createAccountsStore()} />);
 
     await screen.findByText("user@example.com");
+    await screen.findByText("codex@example.com");
+    expect(screen.getByRole("button", { name: "账号登录 user@example.com" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "账号登录 codex@example.com" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/accounts/account-id/kiroLogin",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const confirmDialog = screen.getByRole("dialog", { name: "确认账号登录" });
+    expect(confirmDialog).toHaveTextContent("user@example.com");
+    await userEvent.click(within(confirmDialog).getByRole("button", { name: "确认登录" }));
+
     const loginDialog = screen.getByRole("dialog", { name: "账号登录" });
     expect(loginDialog).toHaveTextContent("user@example.com");
     expect(within(loginDialog).queryByText("Close dialog")).not.toBeInTheDocument();
@@ -372,7 +400,7 @@ describe("AccountsPage", () => {
               access_token: "provider-access",
               refresh_token: "provider-refresh",
               region: "us",
-              account_type: "kiro",
+              account_type: "kiro-aws",
               status: "disabled",
               quota_remaining: 900,
               quota_total: 1000,
@@ -393,6 +421,7 @@ describe("AccountsPage", () => {
     await screen.findByText("user@example.com");
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认登录" }));
     expect(screen.getByRole("dialog", { name: "账号登录" })).toBeInTheDocument();
 
     await vi.advanceTimersByTimeAsync(120_000);
@@ -421,7 +450,7 @@ describe("AccountsPage", () => {
                 access_token: "provider-access",
                 refresh_token: "provider-refresh",
                 region: "us",
-                account_type: "kiro",
+                account_type: "kiro-offical",
                 status: "disabled",
                 quota_remaining: 900,
                 quota_total: 1000,
@@ -445,6 +474,7 @@ describe("AccountsPage", () => {
     await screen.findByText("user@example.com");
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "账号登录 user@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认登录" }));
     expect(screen.getByRole("dialog", { name: "账号登录" })).toBeInTheDocument();
     await vi.advanceTimersByTimeAsync(0);
     await Promise.resolve();

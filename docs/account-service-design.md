@@ -131,7 +131,7 @@
 - `access_token_encrypted`：加密后的 accessToken。
 - `refresh_token_encrypted`：加密后的 refreshToken。
 - `region`：地区，例如 `us`、`eu`、`cn`，也允许业务自定义。
-- `account_type`：账号类型，枚举值为 `claude`、`aws`、`gpt`、`kiro`、`claudecode`、`codex`。
+- `account_type`：账号类型，枚举值为 `claude`、`aws`、`gpt`、`kiro-aws`、`kiro-offical`、`claudecode`、`codex`。
 - `status`：账号状态。
 - `quota_total`：总额度。
 - `quota_used`：已用额度。
