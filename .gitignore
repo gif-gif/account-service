@@ -6,3 +6,5 @@ logs/
 web/dist/
 web/node_modules/
 web/tsconfig.tsbuildinfo
+.idea
+.vscode
