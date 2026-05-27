@@ -1,6 +1,9 @@
 package auth
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestKiroCliTargetURLStoresLatestValue(t *testing.T) {
 	kiro := KiroCli{}
@@ -40,6 +43,18 @@ func TestKiroAWSLoginCommandUsesLicenseAndIdentityProvider(t *testing.T) {
 		if args[i] != want[i] {
 			t.Fatalf("args[%d] = %q, want %q", i, args[i], want[i])
 		}
+	}
+}
+
+func TestSendKiroAWSLoginDefaultAnswersWritesTwoEnters(t *testing.T) {
+	var out bytes.Buffer
+
+	if err := sendKiroAWSLoginDefaultAnswers(&out); err != nil {
+		t.Fatalf("sendKiroAWSLoginDefaultAnswers() error = %v", err)
+	}
+
+	if got := out.String(); got != "\r\r" {
+		t.Fatalf("written input = %q, want two carriage returns", got)
 	}
 }
 

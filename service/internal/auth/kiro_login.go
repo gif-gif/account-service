@@ -195,6 +195,16 @@ func extractKiroAWSLoginURL(output string) string {
 	return match[1]
 }
 
+func sendKiroAWSLoginDefaultAnswers(writer io.Writer) error {
+	if _, err := writer.Write([]byte("\r")); err != nil {
+		return err
+	}
+	if _, err := writer.Write([]byte("\r")); err != nil {
+		return err
+	}
+	return nil
+}
+
 func kiroCliLogin(ctx context.Context, urlChan chan string) bool {
 	defer close(urlChan)
 	logger := kiroLogger()
@@ -471,6 +481,14 @@ func kiroCliLoginByAws(ctx context.Context, urlChan chan string, account KiroCli
 		}
 		close(newLine)
 	}()
+
+	time.Sleep(300 * time.Millisecond)
+	if err := sendKiroAWSLoginDefaultAnswers(ptmx); err != nil {
+		logger.Error().Err(err).Msg("发送 AWS 登录默认回车失败")
+		killProcess(cmd)
+		return false
+	}
+	logger.Info().Msg("已发送 AWS 登录默认回车两次")
 
 	logger.Info().Msg("开始捕获 AWS 登录 URL")
 	targetURL := ""
