@@ -424,6 +424,16 @@ func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	if loginBody.AccountID != account.ID || loginBody.Status != "running" {
 		t.Fatalf("login response = %#v", loginBody)
 	}
+	waitForFakeRunner(t, runner)
+	if len(runner.awsLoginAccounts) != 1 {
+		t.Fatalf("awsLoginAccounts len = %d, want 1", len(runner.awsLoginAccounts))
+	}
+	if runner.awsLoginAccounts[0].ID != account.ID {
+		t.Fatalf("aws login account ID = %q, want %q", runner.awsLoginAccounts[0].ID, account.ID)
+	}
+	if runner.awsLoginAccounts[0].AccountType != AccountTypeKiroAWS {
+		t.Fatalf("aws login account type = %q, want %q", runner.awsLoginAccounts[0].AccountType, AccountTypeKiroAWS)
+	}
 
 	cancelResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/accounts/"+account.ID+"/cancelKiroLogin", `{}`))
 	if err != nil {
@@ -455,6 +465,40 @@ func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	}
 }
 
+func TestStartKiroLoginUsesOfficialRunnerForOfficialAccount(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	runner := &fakeKiroLoginRunner{success: false, done: make(chan struct{})}
+	svc.SetKiroLoginRunner(runner)
+	account, err := svc.Create(CreateAccountRequest{
+		Username:            "official@example.com",
+		Password:            "plain-password",
+		LoginURL:            "https://app.kiro.dev/account/device",
+		Region:              "us-east-1",
+		AccountType:         AccountTypeKiroOffical,
+		Status:              StatusDisabled,
+		MaxConcurrentLeases: 1,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if _, err := svc.StartKiroLogin(account.ID); err != nil {
+		t.Fatalf("StartKiroLogin() error = %v", err)
+	}
+	waitForFakeRunner(t, runner)
+
+	if len(runner.officialLoginAccounts) != 1 {
+		t.Fatalf("officialLoginAccounts len = %d, want 1", len(runner.officialLoginAccounts))
+	}
+	if runner.officialLoginAccounts[0].ID != account.ID {
+		t.Fatalf("official login account ID = %q, want %q", runner.officialLoginAccounts[0].ID, account.ID)
+	}
+	if len(runner.awsLoginAccounts) != 0 {
+		t.Fatalf("awsLoginAccounts len = %d, want 0", len(runner.awsLoginAccounts))
+	}
+}
+
 func mustCodec(t *testing.T) security.CredentialCodec {
 	t.Helper()
 	codec, err := security.NewCredentialCodec("0123456789abcdef0123456789abcdef")
@@ -473,15 +517,27 @@ func ptrInt64(value int64) *int64 {
 }
 
 type fakeKiroLoginRunner struct {
-	success     bool
-	config      *KiroCliConfig
-	done        chan struct{}
-	wait        chan struct{}
-	cancelCalls int
-	running     bool
+	success               bool
+	config                *KiroCliConfig
+	done                  chan struct{}
+	wait                  chan struct{}
+	cancelCalls           int
+	running               bool
+	officialLoginAccounts []Account
+	awsLoginAccounts      []Account
 }
 
-func (runner *fakeKiroLoginRunner) KiroCliLogin() (bool, *KiroCliConfig) {
+func (runner *fakeKiroLoginRunner) KiroCliLogin(account Account) (bool, *KiroCliConfig) {
+	runner.officialLoginAccounts = append(runner.officialLoginAccounts, account)
+	if runner.wait != nil {
+		<-runner.wait
+	}
+	defer close(runner.done)
+	return runner.success, runner.config
+}
+
+func (runner *fakeKiroLoginRunner) KiroCliLoginByAws(account Account) (bool, *KiroCliConfig) {
+	runner.awsLoginAccounts = append(runner.awsLoginAccounts, account)
 	if runner.wait != nil {
 		<-runner.wait
 	}

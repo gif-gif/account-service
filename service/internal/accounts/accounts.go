@@ -153,7 +153,8 @@ type KiroCliConfig struct {
 }
 
 type KiroLoginRunner interface {
-	KiroCliLogin() (bool, *KiroCliConfig)
+	KiroCliLogin(account Account) (bool, *KiroCliConfig)
+	KiroCliLoginByAws(account Account) (bool, *KiroCliConfig)
 	Cancel()
 	Running() bool
 }
@@ -415,7 +416,8 @@ func (service *Service) Query(request QueryRequest) ([]Account, error) {
 }
 
 func (service *Service) StartKiroLogin(accountID string) (KiroLoginResult, error) {
-	if _, err := service.Get(accountID); err != nil {
+	account, err := service.Get(accountID)
+	if err != nil {
 		return KiroLoginResult{}, err
 	}
 	runner := service.kiroLoginRunner
@@ -423,7 +425,14 @@ func (service *Service) StartKiroLogin(accountID string) (KiroLoginResult, error
 		runner = authKiroRunner{}
 	}
 	go func() {
-		success, config := runner.KiroCliLogin()
+		var success bool
+		var config *KiroCliConfig
+		switch account.AccountType {
+		case AccountTypeKiroAWS:
+			success, config = runner.KiroCliLoginByAws(account)
+		default:
+			success, config = runner.KiroCliLogin(account)
+		}
 		if success && config != nil {
 			if _, err := service.Update(accountID, UpdateAccountRequest{
 				AccessToken:    &config.AccessToken,
@@ -686,8 +695,29 @@ func ptrStatus(status Status) *Status {
 
 type authKiroRunner struct{}
 
-func (authKiroRunner) KiroCliLogin() (bool, *KiroCliConfig) {
-	success, config := auth.Kiro.KiroCliLogin()
+func (authKiroRunner) KiroCliLogin(account Account) (bool, *KiroCliConfig) {
+	success, config := auth.Kiro.KiroCliLogin(auth.KiroCliAccount{
+		ID:          account.ID,
+		Username:    account.Username,
+		LoginURL:    account.LoginURL,
+		Region:      account.Region,
+		AccountType: string(account.AccountType),
+	})
+	return convertAuthKiroConfig(success, config)
+}
+
+func (authKiroRunner) KiroCliLoginByAws(account Account) (bool, *KiroCliConfig) {
+	success, config := auth.Kiro.KiroCliLoginByAws(auth.KiroCliAccount{
+		ID:          account.ID,
+		Username:    account.Username,
+		LoginURL:    account.LoginURL,
+		Region:      account.Region,
+		AccountType: string(account.AccountType),
+	})
+	return convertAuthKiroConfig(success, config)
+}
+
+func convertAuthKiroConfig(success bool, config *auth.KiroCliConfig) (bool, *KiroCliConfig) {
 	if config == nil {
 		return success, nil
 	}
