@@ -23,7 +23,8 @@ import (
 
 var Kiro = KiroCli{}
 
-const authTokenPath = "~/.aws/sso/cache/kiro-auth-token-cli.json"
+// 容器内的授权之后的地址
+const authTokenPath = "/app/.aws/sso/cache/kiro-auth-token-cli.json"
 
 var kiroLoginURLPattern = regexp.MustCompile(`https://view\.awsapps\.com/start/#/device\?user_code=[A-Z0-9-]+`)
 
