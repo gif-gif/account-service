@@ -447,21 +447,26 @@ func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	}
 
 	runner.running = true
-	runningResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+account.ID+"/kiroLogin/running", nil))
+	runner.targetURL = "https://d-90660ed825.awsapps.com/start/#/device?user_code=MPPG-MKGV"
+	targetResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+account.ID+"/kiroLogin/targetUrl", nil))
 	if err != nil {
-		t.Fatalf("kiroLogin running app.Test() error = %v", err)
+		t.Fatalf("kiroLogin targetUrl app.Test() error = %v", err)
 	}
-	if runningResp.StatusCode != http.StatusOK {
-		t.Fatalf("running status = %d, want %d", runningResp.StatusCode, http.StatusOK)
+	if targetResp.StatusCode != http.StatusOK {
+		t.Fatalf("targetUrl status = %d, want %d", targetResp.StatusCode, http.StatusOK)
 	}
-	var runningBody struct {
-		Running bool `json:"running"`
+	var targetBody struct {
+		Running   bool   `json:"running"`
+		TargetURL string `json:"target_url"`
 	}
-	if err := json.NewDecoder(runningResp.Body).Decode(&runningBody); err != nil {
-		t.Fatalf("decode running response: %v", err)
+	if err := json.NewDecoder(targetResp.Body).Decode(&targetBody); err != nil {
+		t.Fatalf("decode targetUrl response: %v", err)
 	}
-	if !runningBody.Running {
-		t.Fatalf("running response = %#v, want running true", runningBody)
+	if !targetBody.Running {
+		t.Fatalf("targetUrl response = %#v, want running true", targetBody)
+	}
+	if targetBody.TargetURL != runner.targetURL {
+		t.Fatalf("target_url = %q, want %q", targetBody.TargetURL, runner.targetURL)
 	}
 }
 
@@ -523,6 +528,7 @@ type fakeKiroLoginRunner struct {
 	wait                  chan struct{}
 	cancelCalls           int
 	running               bool
+	targetURL             string
 	officialLoginAccounts []Account
 	awsLoginAccounts      []Account
 }
@@ -551,6 +557,10 @@ func (runner *fakeKiroLoginRunner) Cancel() {
 
 func (runner *fakeKiroLoginRunner) Running() bool {
 	return runner.running
+}
+
+func (runner *fakeKiroLoginRunner) TargetURL() string {
+	return runner.targetURL
 }
 
 func createTestAccount(t *testing.T, svc *Service, status Status) Account {

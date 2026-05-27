@@ -157,6 +157,7 @@ type KiroLoginRunner interface {
 	KiroCliLoginByAws(account Account) (bool, *KiroCliConfig)
 	Cancel()
 	Running() bool
+	TargetURL() string
 }
 
 type KiroLoginResult struct {
@@ -473,6 +474,14 @@ func (service *Service) KiroLoginRunning(accountID string) bool {
 	return runner.Running()
 }
 
+func (service *Service) KiroLoginTargetURL(accountID string) (string, bool) {
+	runner := service.kiroLoginRunner
+	if runner == nil {
+		runner = authKiroRunner{}
+	}
+	return runner.TargetURL(), runner.Running()
+}
+
 func (service *Service) decrypt(account StoredAccount) (Account, error) {
 	out := account.Account
 	var err error
@@ -499,6 +508,7 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 	app.Post("/api/v1/accounts/:id/status", service.handleStatus)
 	app.Post("/api/v1/accounts/:id/kiroLogin", service.handleKiroLogin)
 	app.Get("/api/v1/accounts/:id/kiroLogin/running", service.handleKiroLoginRunning)
+	app.Get("/api/v1/accounts/:id/kiroLogin/targetUrl", service.handleKiroLoginTargetURL)
 	app.Post("/api/v1/accounts/:id/cancelKiroLogin", service.handleCancelKiroLogin)
 	app.Delete("/api/v1/accounts/:id", service.handleDelete)
 }
@@ -598,6 +608,11 @@ func (service *Service) handleCancelKiroLogin(c fiber.Ctx) error {
 
 func (service *Service) handleKiroLoginRunning(c fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(fiber.Map{"running": service.KiroLoginRunning(c.Params("id"))})
+}
+
+func (service *Service) handleKiroLoginTargetURL(c fiber.Ctx) error {
+	targetURL, running := service.KiroLoginTargetURL(c.Params("id"))
+	return c.Status(http.StatusOK).JSON(fiber.Map{"running": running, "target_url": targetURL})
 }
 
 func (service *Service) handleDelete(c fiber.Ctx) error {
@@ -737,4 +752,8 @@ func (authKiroRunner) Cancel() {
 
 func (authKiroRunner) Running() bool {
 	return auth.Kiro.Running()
+}
+
+func (authKiroRunner) TargetURL() string {
+	return auth.Kiro.TargetURL()
 }

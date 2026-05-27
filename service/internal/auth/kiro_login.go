@@ -3,7 +3,6 @@ package auth
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -16,7 +15,6 @@ import (
 	"account-service/service/internal/logging"
 
 	"github.com/creack/pty"
-	gomessage "github.com/gif-gif/go.io/go-message"
 	"github.com/gif-gif/go.io/go-utils/gojson"
 	"github.com/rs/zerolog"
 )
@@ -42,10 +40,11 @@ const (
 )
 
 type KiroCli struct {
-	running       bool
-	ctx           context.Context
-	cancel        context.CancelFunc
-	feishuWebhook string
+	mu        sync.Mutex
+	running   bool
+	ctx       context.Context
+	cancel    context.CancelFunc
+	targetURL string
 }
 
 type KiroCliAccount struct {
@@ -66,11 +65,27 @@ type KiroCliConfig struct {
 }
 
 func (k *KiroCli) Running() bool {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	return k.running
 }
 
-func (k *KiroCli) SetFeishuWebhook(webhook string) {
-	k.feishuWebhook = strings.TrimSpace(webhook)
+func (k *KiroCli) TargetURL() string {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return k.targetURL
+}
+
+func (k *KiroCli) setTargetURL(targetURL string) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.targetURL = strings.TrimSpace(targetURL)
+}
+
+func (k *KiroCli) setRunning(running bool) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.running = running
 }
 
 func (k *KiroCli) Cancel() {
@@ -82,28 +97,27 @@ func (k *KiroCli) Cancel() {
 // 不支持并发操作，只有一个容器
 func (k *KiroCli) KiroCliLogin(account KiroCliAccount) (bool, *KiroCliConfig) {
 	logger := kiroLogger()
-	if k.running {
-		k.running = false
+	if k.Running() {
+		k.setRunning(false)
 		if k.cancel != nil {
 			k.cancel()
 		}
 		return false, nil
 	}
-	k.running = true
+	k.setTargetURL("")
+	k.setRunning(true)
 	k.ctx, k.cancel = context.WithCancel(context.Background())
 	defer func() {
-		k.running = false
+		k.setRunning(false)
 		k.cancel()
 	}()
 	urlChan := make(chan string, 1)
 
-	if k.feishuWebhook != "" {
-		go func(webhook string) {
-			for url := range urlChan {
-				gomessage.FeiShu(webhook, fmt.Sprintf("\n🚀 [外部接口收到通知] 拿到目标 URL: %s", url))
-			}
-		}(k.feishuWebhook)
-	}
+	go func() {
+		for url := range urlChan {
+			k.setTargetURL(url)
+		}
+	}()
 
 	success := kiroCliLogin(k.ctx, urlChan)
 	cliConfig := &KiroCliConfig{}
@@ -359,28 +373,27 @@ urlLoop:
 
 func (k *KiroCli) KiroCliLoginByAws(account KiroCliAccount) (bool, *KiroCliConfig) {
 	logger := kiroLogger()
-	if k.running {
-		k.running = false
+	if k.Running() {
+		k.setRunning(false)
 		if k.cancel != nil {
 			k.cancel()
 		}
 		return false, nil
 	}
-	k.running = true
+	k.setTargetURL("")
+	k.setRunning(true)
 	k.ctx, k.cancel = context.WithCancel(context.Background())
 	defer func() {
-		k.running = false
+		k.setRunning(false)
 		k.cancel()
 	}()
 	urlChan := make(chan string, 1)
 
-	if k.feishuWebhook != "" {
-		go func(webhook string) {
-			for url := range urlChan {
-				gomessage.FeiShu(webhook, fmt.Sprintf("\n🚀 [外部接口收到通知] 拿到目标 URL: %s", url))
-			}
-		}(k.feishuWebhook)
-	}
+	go func() {
+		for url := range urlChan {
+			k.setTargetURL(url)
+		}
+	}()
 
 	success := kiroCliLoginByAws(k.ctx, urlChan, account)
 	cliConfig := &KiroCliConfig{}

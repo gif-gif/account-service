@@ -742,6 +742,32 @@ input {
   animation: spin 0.8s linear infinite;
 }
 
+.kiro-login-url-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.kiro-login-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.kiro-login-url {
+  display: block;
+  min-height: 40px;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #e2e8f0;
+  padding: 10px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

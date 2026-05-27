@@ -15,6 +15,7 @@ describe("AccountsPage", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   async function selectDropdownOption(control: HTMLElement, option: string) {
@@ -339,6 +340,7 @@ describe("AccountsPage", () => {
         ),
       )
       .mockResolvedValueOnce(new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ running: true, target_url: "" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -383,8 +385,8 @@ describe("AccountsPage", () => {
       if (url.endsWith("/kiroLogin")) {
         return new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 });
       }
-      if (url.endsWith("/kiroLogin/running")) {
-        return new Response(JSON.stringify({ running: true }), { status: 200 });
+      if (url.endsWith("/kiroLogin/targetUrl")) {
+        return new Response(JSON.stringify({ running: true, target_url: "" }), { status: 200 });
       }
       if (url.endsWith("/cancelKiroLogin")) {
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
@@ -434,8 +436,13 @@ describe("AccountsPage", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument());
   });
 
-  it("polls kiro login running state and closes the dialog when it stops", async () => {
+  it("polls kiro login target url, shows copy action, and closes the dialog when it stops", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -465,7 +472,16 @@ describe("AccountsPage", () => {
         ),
       )
       .mockResolvedValueOnce(new Response(JSON.stringify({ account_id: "account-id", status: "running" }), { status: 202 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ running: false }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            running: true,
+            target_url: "https://d-90660ed825.awsapps.com/start/#/device?user_code=MPPG-MKGV",
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ running: false, target_url: "" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ accounts: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -482,14 +498,18 @@ describe("AccountsPage", () => {
       "https://api.example.com/api/v1/accounts/account-id/kiroLogin",
       expect.objectContaining({ method: "POST" }),
     );
-
-    await vi.advanceTimersByTimeAsync(5_000);
     await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.example.com/api/v1/accounts/account-id/kiroLogin/running",
+      "https://api.example.com/api/v1/accounts/account-id/kiroLogin/targetUrl",
       expect.objectContaining({ method: "GET" }),
     );
+    expect(screen.getByRole("dialog", { name: "账号登录" })).toHaveTextContent("https://d-90660ed825.awsapps.com/start/#/device?user_code=MPPG-MKGV");
+    fireEvent.click(screen.getByRole("button", { name: "复制 Kiro 登录链接" }));
+    expect(writeText).toHaveBeenCalledWith("https://d-90660ed825.awsapps.com/start/#/device?user_code=MPPG-MKGV");
+
+    await vi.advanceTimersByTimeAsync(5_000);
     await vi.advanceTimersByTimeAsync(0);
     await Promise.resolve();
     expect(screen.queryByRole("dialog", { name: "账号登录" })).not.toBeInTheDocument();

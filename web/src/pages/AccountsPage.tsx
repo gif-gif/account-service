@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { Eye, Plus, Search } from "lucide-react";
+import { Copy, Eye, Plus, Search } from "lucide-react";
 
 import { AccountTypeSelect } from "../components/AccountTypeSelect";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
@@ -45,6 +45,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
   const [secretDialog, setSecretDialog] = useState<SecretDialogState>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [kiroLoginStatus, setKiroLoginStatus] = useState<"starting" | "running" | "canceling">("starting");
+  const [kiroLoginTargetUrl, setKiroLoginTargetUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
   function openKiroLogin(account: Account) {
     setActionError(null);
     setKiroLoginStatus("starting");
+    setKiroLoginTargetUrl("");
     setDialog({ type: "kiroLogin", account });
     void startKiroLogin(account);
   }
@@ -115,6 +117,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         body: JSON.stringify({}),
       });
       setKiroLoginStatus("running");
+      void fetchKiroLoginTargetUrl(account);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to start Kiro login");
     }
@@ -133,22 +136,32 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     } finally {
       setDialog((current) => (current?.type === "kiroLogin" && current.account.id === account.id ? null : current));
       setKiroLoginStatus("starting");
+      setKiroLoginTargetUrl("");
     }
   }
 
-  async function checkKiroLoginRunning(account: Account) {
+  async function fetchKiroLoginTargetUrl(account: Account) {
     try {
-      const result = await apiFetch<{ running: boolean }>(`/api/v1/accounts/${account.id}/kiroLogin/running`, {
+      const result = await apiFetch<{ running: boolean; target_url: string }>(`/api/v1/accounts/${account.id}/kiroLogin/targetUrl`, {
         method: "GET",
       });
+      setKiroLoginTargetUrl(result.target_url || "");
       if (!result.running) {
         setDialog((current) => (current?.type === "kiroLogin" && current.account.id === account.id ? null : current));
         setKiroLoginStatus("starting");
+        setKiroLoginTargetUrl("");
         await load();
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Failed to check Kiro login status");
+      setActionError(error instanceof Error ? error.message : "Failed to fetch Kiro login URL");
     }
+  }
+
+  async function copyKiroLoginTargetUrl() {
+    if (!kiroLoginTargetUrl) {
+      return;
+    }
+    await navigator.clipboard?.writeText(kiroLoginTargetUrl);
   }
 
   useEffect(() => {
@@ -168,7 +181,7 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
     }
     const account = dialog.account;
     const interval = window.setInterval(() => {
-      void checkKiroLoginRunning(account);
+      void fetchKiroLoginTargetUrl(account);
     }, 5_000);
     return () => window.clearInterval(interval);
   }, [dialog, kiroLoginStatus]);
@@ -380,10 +393,12 @@ export function AccountsPage({ store = useAccountsStore }: Props) {
         actionError={actionError}
         dialog={dialog}
         kiroLoginStatus={kiroLoginStatus}
+        kiroLoginTargetUrl={kiroLoginTargetUrl}
         saving={saving}
         secretOpen={secretDialog !== null}
         onClose={() => setDialog(null)}
         onCancelKiroLogin={cancelKiroLogin}
+        onCopyKiroLoginTargetUrl={copyKiroLoginTargetUrl}
         onDelete={deleteAccount}
         onReveal={(title, value) => setSecretDialog({ title, value })}
         onStartKiroLogin={openKiroLogin}
@@ -399,8 +414,10 @@ function AccountDialogs({
   actionError,
   dialog,
   kiroLoginStatus,
+  kiroLoginTargetUrl,
   onCancelKiroLogin,
   onClose,
+  onCopyKiroLoginTargetUrl,
   onDelete,
   onReveal,
   onStartKiroLogin,
@@ -412,8 +429,10 @@ function AccountDialogs({
   actionError: string | null;
   dialog: DialogState;
   kiroLoginStatus: "starting" | "running" | "canceling";
+  kiroLoginTargetUrl: string;
   onCancelKiroLogin: (account: Account) => Promise<void>;
   onClose: () => void;
+  onCopyKiroLoginTargetUrl: () => Promise<void>;
   onDelete: (account: Account) => Promise<void>;
   onReveal: (title: string, value: string) => void;
   onStartKiroLogin: (account: Account) => void;
@@ -530,6 +549,25 @@ function AccountDialogs({
               <p>{t(kiroLoginStatus === "canceling" ? "accounts.kiroLoginCanceling" : "accounts.kiroLoginRunning")}</p>
               <p className="muted-text">{t("accounts.kiroLoginTimeout")}</p>
             </div>
+          </div>
+          <div className="kiro-login-url-panel">
+            <Label>{t("accounts.kiroLoginTargetUrl")}</Label>
+            {kiroLoginTargetUrl ? (
+              <div className="kiro-login-url-row">
+                <code className="kiro-login-url">{kiroLoginTargetUrl}</code>
+                <Button
+                  aria-label={`${t("common.copy")} ${t("accounts.kiroLoginTargetUrl")}`}
+                  onClick={() => void onCopyKiroLoginTargetUrl()}
+                  type="button"
+                  variant="secondary"
+                >
+                  <Copy />
+                  {t("common.copy")}
+                </Button>
+              </div>
+            ) : (
+              <p className="muted-text">{t("accounts.kiroLoginTargetUrlWaiting")}</p>
+            )}
           </div>
           {actionError ? (
             <Alert role="alert" variant="destructive">

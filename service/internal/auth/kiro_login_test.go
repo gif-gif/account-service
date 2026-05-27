@@ -2,14 +2,14 @@ package auth
 
 import "testing"
 
-func TestKiroCliSetFeishuWebhookTrimsValue(t *testing.T) {
+func TestKiroCliTargetURLStoresLatestValue(t *testing.T) {
 	kiro := KiroCli{}
 
-	kiro.SetFeishuWebhook(" https://open.feishu.cn/open-apis/bot/v2/hook/example ")
+	kiro.setTargetURL(" https://app.kiro.dev/account/device?user_code=ABCD-EFGH&login_provider=google ")
 
-	want := "https://open.feishu.cn/open-apis/bot/v2/hook/example"
-	if kiro.feishuWebhook != want {
-		t.Fatalf("feishuWebhook = %q, want %q", kiro.feishuWebhook, want)
+	want := "https://app.kiro.dev/account/device?user_code=ABCD-EFGH&login_provider=google"
+	if kiro.TargetURL() != want {
+		t.Fatalf("TargetURL() = %q, want %q", kiro.TargetURL(), want)
 	}
 }
 
