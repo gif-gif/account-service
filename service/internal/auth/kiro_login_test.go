@@ -25,6 +25,7 @@ func TestKiroAWSLoginCommandUsesLicenseAndIdentityProvider(t *testing.T) {
 
 	want := []string{
 		"login",
+		"--use-device-flow",
 		"--license",
 		"pro",
 		"--identity-provider",

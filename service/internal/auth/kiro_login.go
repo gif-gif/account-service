@@ -149,6 +149,7 @@ func (lb *lineBuffer) contains(s string) bool {
 func kiroAWSLoginArgs(account KiroCliAccount) []string {
 	return []string{
 		"login",
+		"--use-device-flow",
 		"--license",
 		"pro",
 		"--identity-provider",
