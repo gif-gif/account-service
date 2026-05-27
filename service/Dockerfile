@@ -21,7 +21,9 @@ RUN groupadd --system app && useradd --system --gid app --home-dir /app --shell 
 WORKDIR /app
 COPY --from=builder /out/account-service /app/account-service
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
+RUN mkdir -p /app/logs /app/.aws/sso/cache /app/.cache /app/.config /app/.local/share \
+    && chown -R app:app /app \
+    && chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8000
 
