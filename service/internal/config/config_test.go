@@ -83,6 +83,23 @@ func TestLoadParsesCORSAllowedOrigins(t *testing.T) {
 	}
 }
 
+func TestLoadParsesKiroLoginFeishuWebhook(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://account:account@localhost:5432/account?sslmode=disable")
+	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("ADMIN_SESSION_SECRET", "admin-session-secret")
+	t.Setenv("KIRO_LOGIN_FEISHU_WEBHOOK", " https://open.feishu.cn/open-apis/bot/v2/hook/example ")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	want := "https://open.feishu.cn/open-apis/bot/v2/hook/example"
+	if cfg.KiroLoginFeishuWebhook != want {
+		t.Fatalf("KiroLoginFeishuWebhook = %q, want %q", cfg.KiroLoginFeishuWebhook, want)
+	}
+}
+
 func TestLoadRejectsInvalidTTL(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://account:account@localhost:5432/account?sslmode=disable")
 	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")

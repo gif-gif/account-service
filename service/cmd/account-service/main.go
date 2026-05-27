@@ -10,6 +10,7 @@ import (
 	"account-service/service/internal/admin"
 	"account-service/service/internal/app"
 	"account-service/service/internal/audit"
+	"account-service/service/internal/auth"
 	"account-service/service/internal/callers"
 	"account-service/service/internal/config"
 	"account-service/service/internal/leases"
@@ -41,6 +42,7 @@ func main() {
 	if logPath != "" {
 		logger.Info().Str("path", logPath).Msg("service logs writing to file")
 	}
+	auth.Kiro.SetFeishuWebhook(cfg.KiroLoginFeishuWebhook)
 
 	fiberApp, err := buildApp(cfg)
 	if err != nil {

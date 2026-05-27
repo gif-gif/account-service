@@ -23,6 +23,7 @@ type Config struct {
 	CORSAllowedOrigins                []string
 	LogLevel                          string
 	LogDir                            string
+	KiroLoginFeishuWebhook            string
 	HealthCheckDatabaseTimeout        time.Duration
 	HTTPHost                          string
 	HTTPPort                          int
@@ -44,6 +45,7 @@ func Load() (Config, error) {
 		CORSAllowedOrigins:                splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		LogLevel:                          envString("LOG_LEVEL", "info"),
 		LogDir:                            envString("LOG_DIR", "logs"),
+		KiroLoginFeishuWebhook:            strings.TrimSpace(os.Getenv("KIRO_LOGIN_FEISHU_WEBHOOK")),
 		HTTPHost:                          envString("HTTP_HOST", "127.0.0.1"),
 		HTTPPort:                          envInt("HTTP_PORT", 8000),
 		DefaultLeaseTTLSeconds:            envInt("DEFAULT_LEASE_TTL_SECONDS", 900),

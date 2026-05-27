@@ -33,6 +33,10 @@ required_keys=(
   "HTTP_PORT"
 )
 
+optional_keys=(
+  "KIRO_LOGIN_FEISHU_WEBHOOK"
+)
+
 for file in "${required_files[@]}"; do
   path="$ROOT_DIR/$file"
   if [[ ! -f "$path" ]]; then
@@ -42,6 +46,13 @@ for file in "${required_files[@]}"; do
 
   for key in "${required_keys[@]}"; do
     if ! grep -Eq "^${key}=.+" "$path"; then
+      echo "error: $file must define $key" >&2
+      exit 1
+    fi
+  done
+
+  for key in "${optional_keys[@]}"; do
+    if ! grep -Eq "^${key}=.*" "$path"; then
       echo "error: $file must define $key" >&2
       exit 1
     fi

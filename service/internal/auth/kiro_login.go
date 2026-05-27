@@ -41,9 +41,10 @@ const (
 )
 
 type KiroCli struct {
-	running bool
-	ctx     context.Context
-	cancel  context.CancelFunc
+	running       bool
+	ctx           context.Context
+	cancel        context.CancelFunc
+	feishuWebhook string
 }
 
 type KiroCliConfig struct {
@@ -57,6 +58,10 @@ type KiroCliConfig struct {
 
 func (k *KiroCli) Running() bool {
 	return k.running
+}
+
+func (k *KiroCli) SetFeishuWebhook(webhook string) {
+	k.feishuWebhook = strings.TrimSpace(webhook)
 }
 
 func (k *KiroCli) Cancel() {
@@ -83,11 +88,13 @@ func (k *KiroCli) KiroCliLogin() (bool, *KiroCliConfig) {
 	}()
 	urlChan := make(chan string, 1)
 
-	go func() {
-		for url := range urlChan {
-			gomessage.FeiShu("https://open.feishu.cn/open-apis/bot/v2/hook/82c21496-edd0-43c1-a848-945139307a64", fmt.Sprintf("\n🚀 [外部接口收到通知] 拿到目标 URL: %s", url))
-		}
-	}()
+	if k.feishuWebhook != "" {
+		go func(webhook string) {
+			for url := range urlChan {
+				gomessage.FeiShu(webhook, fmt.Sprintf("\n🚀 [外部接口收到通知] 拿到目标 URL: %s", url))
+			}
+		}(k.feishuWebhook)
+	}
 
 	success := kiroCliLogin(k.ctx, urlChan)
 	cliConfig := &KiroCliConfig{}
