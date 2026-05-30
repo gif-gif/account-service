@@ -10,7 +10,11 @@ services:
     ports:
       - "${HTTP_PORT:-8000}:${HTTP_PORT:-8000}"
     volumes:
-      - ./app:/app
+      - ./app/logs:/app/logs
+      - ./app/aws-sso-cache:/app/.aws/sso/cache
+      - ./app/cache:/app/.cache
+      - ./app/config:/app/.config
+      - ./app/local-share:/app/.local/share
     depends_on:
       postgres:
         condition: service_healthy
