@@ -518,6 +518,10 @@ function AccountDialogs({
               {t("accounts.kiroLoginConfirmDescription")} {dialog.account.username}
             </DialogDescription>
           </DialogHeader>
+          <div className="login-confirm-account">
+            <DetailItem label={t("accounts.username")} value={dialog.account.username || "-"} />
+            <DetailItem label={t("accounts.notes")} value={dialog.account.notes || "-"} />
+          </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">

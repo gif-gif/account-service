@@ -706,6 +706,12 @@ input {
   flex-wrap: wrap;
 }
 
+.login-confirm-account {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .secret-value {
   display: block;
   max-height: 280px;
@@ -830,7 +836,8 @@ input {
   .metric-grid,
   .filter-grid,
   .form-grid--two,
-  .detail-grid {
+  .detail-grid,
+  .login-confirm-account {
     grid-template-columns: 1fr;
   }
 

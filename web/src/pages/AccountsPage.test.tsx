@@ -357,6 +357,9 @@ describe("AccountsPage", () => {
     );
     const confirmDialog = screen.getByRole("dialog", { name: "确认账号登录" });
     expect(confirmDialog).toHaveTextContent("user@example.com");
+    expect(confirmDialog).toHaveTextContent("用户名");
+    expect(confirmDialog).toHaveTextContent("备注");
+    expect(confirmDialog).toHaveTextContent("primary");
     await userEvent.click(within(confirmDialog).getByRole("button", { name: "确认登录" }));
 
     const loginDialog = screen.getByRole("dialog", { name: "账号登录" });
