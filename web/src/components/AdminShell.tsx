@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { BarChart3, ClipboardList, FileClock, KeyRound, Languages, LayoutDashboard, LogOut, Settings, UsersRound } from "lucide-react";
+import { BarChart3, ClipboardList, FileClock, KeyRound, Languages, LayoutDashboard, LogOut, Settings, SlidersHorizontal, UsersRound } from "lucide-react";
 
 import { AccountsPage } from "../pages/AccountsPage";
 import { ApiKeysPage } from "../pages/ApiKeysPage";
 import { AuditLogsPage } from "../pages/AuditLogsPage";
 import { LeasesPage } from "../pages/LeasesPage";
+import { ModelConfigPage } from "../pages/ModelConfigPage";
 import type { AuthStore } from "../store/auth";
 import { useAuthStore } from "../store/auth";
 import { useI18n, type TranslationKey } from "../store/settings";
@@ -12,7 +13,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-type SectionID = "overview" | "accounts" | "leases" | "api-keys" | "audit-logs";
+type SectionID = "overview" | "accounts" | "leases" | "model-config" | "api-keys" | "audit-logs";
 
 type Props = {
   authStore?: AuthStore;
@@ -22,6 +23,7 @@ const sections: Array<{ id: SectionID; labelKey: TranslationKey; icon: typeof La
   { id: "overview", labelKey: "nav.overview", icon: LayoutDashboard },
   { id: "accounts", labelKey: "nav.accounts", icon: UsersRound },
   { id: "leases", labelKey: "nav.leases", icon: ClipboardList },
+  { id: "model-config", labelKey: "nav.modelConfig", icon: SlidersHorizontal },
   { id: "api-keys", labelKey: "nav.apiKeys", icon: KeyRound },
   { id: "audit-logs", labelKey: "nav.auditLogs", icon: FileClock },
 ];
@@ -92,6 +94,7 @@ export function AdminShell({ authStore = useAuthStore }: Props) {
         {activeSection === "overview" ? <OverviewPage /> : null}
         {activeSection === "accounts" ? <AccountsPage /> : null}
         {activeSection === "leases" ? <LeasesPage /> : null}
+        {activeSection === "model-config" ? <ModelConfigPage /> : null}
         {activeSection === "api-keys" ? <ApiKeysPage /> : null}
         {activeSection === "audit-logs" ? <AuditLogsPage /> : null}
       </div>

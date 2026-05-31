@@ -31,6 +31,7 @@ func TestInitMigrationCreatesRequiredTables(t *testing.T) {
 		"admin_users",
 		"admin_sessions",
 		"audit_logs",
+		"model_config_items",
 	}
 	for _, table := range requiredTables {
 		var exists bool
@@ -101,6 +102,30 @@ func TestInitMigrationIncludesKiroConfigColumns(t *testing.T) {
 	for _, fragment := range requiredFragments {
 		if !strings.Contains(sql, fragment) {
 			t.Fatalf("init migration missing kiro config column fragment %q", fragment)
+		}
+	}
+}
+
+func TestInitMigrationSeedsModelConfig(t *testing.T) {
+	sqlBytes, err := migrationFiles.ReadFile("migrations/000001_init.sql")
+	if err != nil {
+		t.Fatalf("read init migration: %v", err)
+	}
+	sql := string(sqlBytes)
+
+	requiredFragments := []string{
+		"create table if not exists model_config_items",
+		"kind text not null check (kind in ('fallback_model', 'hidden_model', 'model_alias', 'hidden_from_list'))",
+		"unique (kind, key)",
+		"('fallback_model', 'claude-sonnet-4.6', '', 70)",
+		"('hidden_model', 'claude-3.7-sonnet', 'CLAUDE_3_7_SONNET_20250219_V1_0', 10)",
+		"('model_alias', 'claude-opus-4-7', 'claude-opus-4.7', 70)",
+		"('hidden_from_list', 'auto', '', 10)",
+		"on conflict (kind, key) do nothing",
+	}
+	for _, fragment := range requiredFragments {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("init migration missing model config fragment %q", fragment)
 		}
 	}
 }

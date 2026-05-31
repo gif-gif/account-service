@@ -23,7 +23,7 @@ describe("App", () => {
   });
 
   it("shows the operations shell and switches sections when signed in", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ accounts: [], leases: [], audit_logs: [] }), { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ accounts: [], leases: [], audit_logs: [], items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
     const store = createAuthStore();
@@ -37,6 +37,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Key 管理" }));
 
     expect(screen.getByRole("heading", { name: "Key 管理" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "模型管理" }));
+
+    expect(screen.getByRole("heading", { name: "模型管理" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "管理员登录" })).not.toBeInTheDocument();
   });
 

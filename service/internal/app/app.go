@@ -44,12 +44,17 @@ func New(options Options) *fiber.App {
 		fiberApp.Use("/api/v1/accounts", httpx.AdminSession(options.AdminService))
 		fiberApp.Use("/api/v1/leases", httpx.AdminSession(options.AdminService))
 		fiberApp.Use("/api/v1/api-keys", httpx.AdminSession(options.AdminService))
+		fiberApp.Use("/api/v1/model-config", httpx.AdminSession(options.AdminService))
 	}
 	if options.AccountService != nil {
 		accounts.RegisterRoutes(fiberApp, options.AccountService)
 	}
 	if options.LeaseService != nil {
 		leases.RegisterRoutes(fiberApp, options.LeaseService)
+	}
+	modelConfig := options.ModelConfig
+	if modelConfig != nil {
+		modelconfig.RegisterRoutes(fiberApp, modelConfig)
 	}
 	if options.CallerStore != nil {
 		callers.RegisterRoutes(fiberApp, options.CallerStore)
@@ -66,9 +71,8 @@ func New(options Options) *fiber.App {
 		if options.LeaseService != nil {
 			leases.RegisterExternalRoutes(fiberApp, options.LeaseService)
 		}
-		modelConfig := options.ModelConfig
 		if modelConfig == nil {
-			modelConfig = modelconfig.NewDefaultService()
+			modelConfig = modelconfig.NewService(modelconfig.NewMemoryRepository(nil))
 		}
 		modelconfig.RegisterExternalRoutes(fiberApp, modelConfig)
 	}

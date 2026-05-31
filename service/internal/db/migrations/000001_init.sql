@@ -102,3 +102,38 @@ create table if not exists audit_logs (
 create index if not exists idx_audit_logs_created_at on audit_logs (created_at desc);
 create index if not exists idx_audit_logs_actor on audit_logs (actor_type, actor_id);
 create index if not exists idx_audit_logs_action on audit_logs (action);
+
+create table if not exists model_config_items (
+    id uuid primary key default gen_random_uuid(),
+    kind text not null check (kind in ('fallback_model', 'hidden_model', 'model_alias', 'hidden_from_list')),
+    key text not null,
+    value text not null default '',
+    display_order integer not null default 0,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (kind, key)
+);
+
+create index if not exists idx_model_config_items_kind_order on model_config_items (kind, display_order, key);
+
+insert into model_config_items (kind, key, value, display_order)
+values
+    ('fallback_model', 'auto', '', 10),
+    ('fallback_model', 'claude-sonnet-4', '', 20),
+    ('fallback_model', 'claude-haiku-4.5', '', 30),
+    ('fallback_model', 'claude-sonnet-4.5', '', 40),
+    ('fallback_model', 'claude-opus-4.5', '', 50),
+    ('fallback_model', 'claude-opus-4.6', '', 60),
+    ('fallback_model', 'claude-sonnet-4.6', '', 70),
+    ('hidden_model', 'claude-3.7-sonnet', 'CLAUDE_3_7_SONNET_20250219_V1_0', 10),
+    ('hidden_model', 'claude-opus-4.6', 'claude-opus-4.6', 20),
+    ('hidden_model', 'claude-sonnet-4.6', 'claude-sonnet-4.6', 30),
+    ('model_alias', 'auto-kiro', 'auto', 10),
+    ('model_alias', 'claude-opus-4-6', 'claude-opus-4.6', 20),
+    ('model_alias', 'claude-sonnet-4-6', 'claude-sonnet-4.6', 30),
+    ('model_alias', 'claude-opus-4-5', 'claude-opus-4.5', 40),
+    ('model_alias', 'claude-sonnet-4-5', 'claude-sonnet-4.5', 50),
+    ('model_alias', 'claude-haiku-4-5', 'claude-haiku-4.5', 60),
+    ('model_alias', 'claude-opus-4-7', 'claude-opus-4.7', 70),
+    ('hidden_from_list', 'auto', '', 10)
+on conflict (kind, key) do nothing;

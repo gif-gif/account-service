@@ -13,6 +13,7 @@ import (
 	"account-service/service/internal/audit"
 	"account-service/service/internal/callers"
 	"account-service/service/internal/leases"
+	"account-service/service/internal/modelconfig"
 	"account-service/service/internal/security"
 )
 
@@ -117,7 +118,17 @@ func TestNewExposesExternalRoutesWithAPIKey(t *testing.T) {
 		t.Fatalf("Create caller error = %v", err)
 	}
 	adminService := newTestAdminService(t)
-	app := New(Options{AdminService: adminService, AccountService: accountService, LeaseService: leaseService, CallerStore: callerStore})
+	modelConfigService := modelconfig.NewService(modelconfig.NewMemoryRepository([]modelconfig.Item{
+		{Kind: modelconfig.KindFallbackModel, Key: "auto", DisplayOrder: 10},
+		{Kind: modelconfig.KindModelAlias, Key: "claude-opus-4-7", Value: "claude-opus-4.7", DisplayOrder: 20},
+	}))
+	app := New(Options{
+		AdminService:   adminService,
+		AccountService: accountService,
+		LeaseService:   leaseService,
+		CallerStore:    callerStore,
+		ModelConfig:    modelConfigService,
+	})
 
 	missingReq := httptest.NewRequest(http.MethodPost, "/api/v1/external/accounts/query", strings.NewReader(`{"limit":10}`))
 	missingReq.Header.Set("Content-Type", "application/json")

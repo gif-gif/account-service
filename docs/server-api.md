@@ -651,6 +651,80 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/api-keys' \
 API_KEY='acct_xxx'
 ```
 
+## 模型配置管理
+
+模型配置管理接口用于维护外部服务读取的模型列表、隐藏模型、模型别名和列表隐藏项。管理接口需要管理员 JWT。
+
+模型配置项字段：
+
+- `kind`：`fallback_model`、`hidden_model`、`model_alias`、`hidden_from_list`
+- `key`：模型 ID、隐藏模型名称、别名名称或隐藏列表项
+- `value`：`hidden_model` 和 `model_alias` 的目标值；其他类型可为空
+- `display_order`：同类型内排序值
+
+### 查询模型配置项
+
+```http
+GET /api/v1/model-config/items
+```
+
+curl 示例：
+
+```bash
+curl -i 'http://127.0.0.1:8000/api/v1/model-config/items' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+### 创建模型配置项
+
+```http
+POST /api/v1/model-config/items
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/model-config/items' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+  --data-raw '{
+    "kind": "model_alias",
+    "key": "claude-opus-4-7",
+    "value": "claude-opus-4.7",
+    "display_order": 70
+  }'
+```
+
+### 更新模型配置项
+
+```http
+PATCH /api/v1/model-config/items/{id}
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request PATCH 'http://127.0.0.1:8000/api/v1/model-config/items/item-id' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+  --data-raw '{
+    "value": "claude-opus-4.8"
+  }'
+```
+
+### 删除模型配置项
+
+```http
+DELETE /api/v1/model-config/items/{id}
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request DELETE 'http://127.0.0.1:8000/api/v1/model-config/items/item-id' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
 ## 外部服务账号接口
 
 外部服务接口默认使用 API Key 鉴权，不接受管理员 JWT。鉴权可通过服务端环境变量 `EXTERNAL_API_KEY_AUTH_ENABLED` 控制：本地环境默认关闭，其他环境默认开启。开启时请求头格式：

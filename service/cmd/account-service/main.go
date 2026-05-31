@@ -12,8 +12,10 @@ import (
 	"account-service/service/internal/audit"
 	"account-service/service/internal/callers"
 	"account-service/service/internal/config"
+	"account-service/service/internal/db"
 	"account-service/service/internal/leases"
 	"account-service/service/internal/logging"
+	"account-service/service/internal/modelconfig"
 	"account-service/service/internal/security"
 
 	"github.com/gofiber/fiber/v3"
@@ -69,6 +71,18 @@ func buildApp(cfg config.Config) (*fiber.App, error) {
 	accountService := accounts.NewService(accounts.NewMemoryRepository(codec), codec, auditWriter)
 	leaseService := leases.NewService(accountService, cfg.DefaultLeaseTTL, cfg.MaxLeaseTTL, auditWriter)
 	callerStore := callers.NewMemoryStore()
+	modelConfigService := modelconfig.NewService(modelconfig.NewMemoryRepository(nil))
+	if cfg.DatabaseURL != "" {
+		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
+		if err != nil {
+			return nil, err
+		}
+		if err := db.ApplyMigrations(context.Background(), pool); err != nil {
+			pool.Close()
+			return nil, err
+		}
+		modelConfigService = modelconfig.NewService(modelconfig.NewPostgresRepository(pool))
+	}
 
 	adminStore := admin.NewMemoryStore(12 * time.Hour)
 	passwordHash, err := security.HashPassword("strongpass")
@@ -89,6 +103,7 @@ func buildApp(cfg config.Config) (*fiber.App, error) {
 		AccountService:            accountService,
 		LeaseService:              leaseService,
 		CallerStore:               callerStore,
+		ModelConfig:               modelConfigService,
 		ExternalAPIKeyAuthEnabled: &cfg.ExternalAPIKeyAuthEnabled,
 		CORSOrigins:               cfg.CORSAllowedOrigins,
 	}), nil
