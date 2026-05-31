@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -137,12 +138,51 @@ type UpdateAccountRequest struct {
 }
 
 type QueryRequest struct {
-	Region            string      `json:"region"`
-	AccountType       AccountType `json:"account_type"`
-	Statuses          []Status    `json:"statuses"`
-	Tags              []string    `json:"tags"`
-	MinQuotaRemaining int64       `json:"min_quota_remaining"`
-	Limit             int         `json:"limit"`
+	Region            string        `json:"region"`
+	AccountType       AccountType   `json:"account_type"`
+	AccountTypes      []AccountType `json:"account_types"`
+	Statuses          []Status      `json:"statuses"`
+	Tags              []string      `json:"tags"`
+	MinQuotaRemaining int64         `json:"min_quota_remaining"`
+	Limit             int           `json:"limit"`
+}
+
+func (request *QueryRequest) UnmarshalJSON(data []byte) error {
+	type queryRequestJSON struct {
+		Region            string          `json:"region"`
+		AccountType       json.RawMessage `json:"account_type"`
+		AccountTypes      []AccountType   `json:"account_types"`
+		Statuses          []Status        `json:"statuses"`
+		Tags              []string        `json:"tags"`
+		MinQuotaRemaining int64           `json:"min_quota_remaining"`
+		Limit             int             `json:"limit"`
+	}
+	var raw queryRequestJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*request = QueryRequest{
+		Region:            raw.Region,
+		AccountTypes:      raw.AccountTypes,
+		Statuses:          raw.Statuses,
+		Tags:              raw.Tags,
+		MinQuotaRemaining: raw.MinQuotaRemaining,
+		Limit:             raw.Limit,
+	}
+	if len(raw.AccountType) == 0 || string(raw.AccountType) == "null" {
+		return nil
+	}
+	var accountType AccountType
+	if err := json.Unmarshal(raw.AccountType, &accountType); err == nil {
+		request.AccountType = accountType
+		return nil
+	}
+	var accountTypes []AccountType
+	if err := json.Unmarshal(raw.AccountType, &accountTypes); err != nil {
+		return err
+	}
+	request.AccountTypes = append(request.AccountTypes, accountTypes...)
+	return nil
 }
 
 type KiroCliConfig struct {
@@ -382,6 +422,15 @@ func (service *Service) Query(request QueryRequest) ([]Account, error) {
 	if request.AccountType != "" && !validAccountTypes[request.AccountType] {
 		return nil, errors.New("invalid account type")
 	}
+	for _, accountType := range request.AccountTypes {
+		if !validAccountTypes[accountType] {
+			return nil, errors.New("invalid account type")
+		}
+	}
+	accountTypes := request.AccountTypes
+	if request.AccountType != "" && len(accountTypes) == 0 {
+		accountTypes = []AccountType{request.AccountType}
+	}
 
 	service.repo.mu.Lock()
 	stored := make([]StoredAccount, 0, len(service.repo.accounts))
@@ -400,7 +449,7 @@ func (service *Service) Query(request QueryRequest) ([]Account, error) {
 		if request.Region != "" && account.Region != request.Region {
 			continue
 		}
-		if request.AccountType != "" && account.AccountType != request.AccountType {
+		if len(accountTypes) > 0 && !slices.Contains(accountTypes, account.AccountType) {
 			continue
 		}
 		if len(request.Statuses) > 0 && !slices.Contains(request.Statuses, account.Status) {
@@ -674,11 +723,18 @@ func containsAllTags(haystack []string, needles []string) bool {
 }
 
 func queryRequestFromParams(c fiber.Ctx) (QueryRequest, error) {
+	accountTypeParam := strings.TrimSpace(c.Query("account_type"))
 	request := QueryRequest{
-		Region:      strings.TrimSpace(c.Query("region")),
-		AccountType: AccountType(strings.TrimSpace(c.Query("account_type"))),
-		Statuses:    splitStatuses(c.Query("status")),
-		Tags:        splitCSV(c.Query("tags")),
+		Region:       strings.TrimSpace(c.Query("region")),
+		AccountTypes: splitAccountTypes(c.Query("account_types")),
+		Statuses:     splitStatuses(c.Query("status")),
+		Tags:         splitCSV(c.Query("tags")),
+	}
+	if accountTypeParam != "" && !strings.Contains(accountTypeParam, ",") {
+		request.AccountType = AccountType(accountTypeParam)
+	}
+	if request.AccountTypes == nil {
+		request.AccountTypes = splitAccountTypes(accountTypeParam)
 	}
 	if request.Statuses == nil {
 		request.Statuses = splitStatuses(c.Query("statuses"))
@@ -710,6 +766,18 @@ func splitStatuses(value string) []Status {
 	out := make([]Status, 0, len(items))
 	for _, item := range items {
 		out = append(out, Status(item))
+	}
+	return out
+}
+
+func splitAccountTypes(value string) []AccountType {
+	items := splitCSV(value)
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]AccountType, 0, len(items))
+	for _, item := range items {
+		out = append(out, AccountType(item))
 	}
 	return out
 }

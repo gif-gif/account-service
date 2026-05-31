@@ -263,14 +263,14 @@
 
 `GET /api/v1/external/accounts`
 
-支持 `region`、`account_type`、`status`/`statuses`、`tags`、`min_quota_remaining` 和 `limit` 查询参数；`status`、`statuses`、`tags` 支持逗号分隔多个值。
+支持 `region`、`account_type`/`account_types`、`status`/`statuses`、`tags`、`min_quota_remaining` 和 `limit` 查询参数；`account_type`、`account_types`、`status`、`statuses`、`tags` 支持逗号分隔多个值。
 
 请求示例：
 
 ```json
 {
   "region": "us",
-  "account_type": "codex",
+  "account_type": ["codex", "kiro-aws"],
   "statuses": ["active"],
   "tags": ["openai"],
   "min_quota_remaining": 1,

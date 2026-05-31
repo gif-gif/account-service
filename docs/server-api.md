@@ -863,13 +863,15 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/account
   --header "Authorization: Bearer ${API_KEY}" \
   --data-raw '{
     "region": "us",
-    "account_type": "codex",
+    "account_type": ["codex", "kiro-aws"],
     "statuses": ["active"],
     "tags": ["openai"],
     "min_quota_remaining": 1,
     "limit": 10
   }'
 ```
+
+`account_type` 兼容单个字符串和字符串数组。也可以使用 `account_types` 数组字段传多个账号类型。
 
 ### 外部查询账号列表
 
@@ -880,7 +882,8 @@ GET /api/v1/external/accounts
 支持查询参数：
 
 - `region`
-- `account_type`
+- `account_type`，可用逗号分隔多个账号类型
+- `account_types`，同 `account_type`
 - `status`，可用逗号分隔多个状态
 - `statuses`，同 `status`
 - `tags`，可用逗号分隔多个标签
@@ -890,7 +893,7 @@ GET /api/v1/external/accounts
 curl 示例：
 
 ```bash
-curl -i 'http://127.0.0.1:8000/api/v1/external/accounts?region=us&account_type=codex&status=active&tags=openai&min_quota_remaining=1&limit=10' \
+curl -i 'http://127.0.0.1:8000/api/v1/external/accounts?region=us&account_type=codex,kiro-aws&status=active&tags=openai&min_quota_remaining=1&limit=10' \
   --header "Authorization: Bearer ${API_KEY}"
 ```
 

@@ -83,6 +83,29 @@ func TestRepositoryCreateGetUpdateAndQuery(t *testing.T) {
 	}
 }
 
+func TestQueryFiltersByMultipleAccountTypes(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	codex := createTypedTestAccount(t, svc, "codex@example.com", AccountTypeCodex)
+	kiroAWS := createTypedTestAccount(t, svc, "kiro@example.com", AccountTypeKiroAWS)
+	_ = createTypedTestAccount(t, svc, "gpt@example.com", AccountTypeGPT)
+
+	results, err := svc.Query(QueryRequest{
+		AccountTypes: []AccountType{AccountTypeCodex, AccountTypeKiroAWS},
+		Limit:        10,
+	})
+	if err != nil {
+		t.Fatalf("Query() error = %v", err)
+	}
+	got := map[string]bool{}
+	for _, account := range results {
+		got[account.ID] = true
+	}
+	if len(results) != 2 || !got[codex.ID] || !got[kiroAWS.ID] {
+		t.Fatalf("Query() ids = %#v, want codex and kiro-aws", got)
+	}
+}
+
 func TestCreateDefaultsStatusToDisabled(t *testing.T) {
 	codec := mustCodec(t)
 	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
@@ -488,6 +511,41 @@ func TestExternalQueryReturnsAccountTableAlignedFields(t *testing.T) {
 	}
 }
 
+func TestExternalQueryAcceptsMultipleAccountTypesInAccountTypeField(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	codex := createTypedTestAccount(t, svc, "codex@example.com", AccountTypeCodex)
+	kiroAWS := createTypedTestAccount(t, svc, "kiro@example.com", AccountTypeKiroAWS)
+	_ = createTypedTestAccount(t, svc, "gpt@example.com", AccountTypeGPT)
+	app := fiber.New()
+	RegisterExternalRoutes(app, svc)
+
+	queryResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/external/accounts/query", `{
+		"account_type": ["codex", "kiro-aws"],
+		"limit": 10
+	}`))
+	if err != nil {
+		t.Fatalf("query app.Test() error = %v", err)
+	}
+	if queryResp.StatusCode != http.StatusOK {
+		t.Fatalf("query status = %d, want %d", queryResp.StatusCode, http.StatusOK)
+	}
+
+	var body struct {
+		Accounts []Account `json:"accounts"`
+	}
+	if err := json.NewDecoder(queryResp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode query response: %v", err)
+	}
+	got := map[string]bool{}
+	for _, account := range body.Accounts {
+		got[account.ID] = true
+	}
+	if len(body.Accounts) != 2 || !got[codex.ID] || !got[kiroAWS.ID] {
+		t.Fatalf("query ids = %#v, want codex and kiro-aws", got)
+	}
+}
+
 func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	codec := mustCodec(t)
 	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
@@ -661,6 +719,26 @@ func createTestAccount(t *testing.T, svc *Service, status Status) Account {
 		Region:              "us",
 		AccountType:         AccountTypeKiroAWS,
 		Status:              status,
+		MaxConcurrentLeases: 1,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	return account
+}
+
+func createTypedTestAccount(t *testing.T, svc *Service, username string, accountType AccountType) Account {
+	t.Helper()
+	account, err := svc.Create(CreateAccountRequest{
+		Username:            username,
+		Password:            "plain-password",
+		LoginURL:            "https://example.com/login",
+		AccessToken:         "access-token",
+		RefreshToken:        "refresh-token",
+		Region:              "us",
+		AccountType:         accountType,
+		Status:              StatusActive,
+		QuotaRemaining:      100,
 		MaxConcurrentLeases: 1,
 	})
 	if err != nil {
