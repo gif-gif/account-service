@@ -72,7 +72,7 @@ describe("ModelConfigPage", () => {
     expect(screen.getByRole("columnheader", { name: "状态" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "创建时间" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
-    expect(screen.getByText("可用")).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /auto.*可用/ })).toBeInTheDocument();
     expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument();
 
@@ -93,7 +93,7 @@ describe("ModelConfigPage", () => {
       ),
     );
     expect(await screen.findByText("claude-opus-4.7")).toBeInTheDocument();
-    expect(await screen.findByText("禁用")).toBeInTheDocument();
+    expect(await screen.findByRole("row", { name: /claude-opus-4-7.*禁用/ })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole("button", { name: "编辑 claude-opus-4-7" }));
@@ -118,5 +118,75 @@ describe("ModelConfigPage", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/model-config/items/item-2", expect.objectContaining({ method: "DELETE" })),
     );
+  });
+
+  it("filters model config items by type key and status", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "item-1",
+              kind: "fallback_model",
+              key: "auto",
+              value: "",
+              status: "active",
+              display_order: 10,
+              created_at: "2026-05-31T00:00:00Z",
+              updated_at: "2026-05-31T00:00:00Z",
+            },
+            {
+              id: "item-2",
+              kind: "model_alias",
+              key: "claude-opus-4-7",
+              value: "claude-opus-4.7",
+              status: "disabled",
+              display_order: 20,
+              created_at: "2026-05-31T00:00:00Z",
+              updated_at: "2026-05-31T00:00:00Z",
+            },
+            {
+              id: "item-3",
+              kind: "hidden_model",
+              key: "claude-3.7-sonnet",
+              value: "CLAUDE_3_7_SONNET_20250219_V1_0",
+              status: "active",
+              display_order: 30,
+              created_at: "2026-05-31T00:00:00Z",
+              updated_at: "2026-05-31T00:00:00Z",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ModelConfigPage />);
+
+    expect(await screen.findByRole("row", { name: /auto/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /claude-opus-4-7/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /claude-3\.7-sonnet/ })).toBeInTheDocument();
+
+    const filters = screen.getByRole("region", { name: "筛选条件" });
+    await userEvent.selectOptions(within(filters).getByLabelText("类型"), "model_alias");
+
+    expect(screen.queryByRole("row", { name: /auto/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /claude-opus-4-7/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /claude-3\.7-sonnet/ })).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(within(filters).getByLabelText("类型"), "");
+    await userEvent.type(within(filters).getByLabelText("键"), "SONNET");
+
+    expect(screen.queryByRole("row", { name: /auto/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /claude-opus-4-7/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /claude-3\.7-sonnet/ })).toBeInTheDocument();
+
+    await userEvent.clear(within(filters).getByLabelText("键"));
+    await userEvent.selectOptions(within(filters).getByLabelText("状态"), "disabled");
+
+    expect(screen.queryByRole("row", { name: /auto/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /claude-opus-4-7/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /claude-3\.7-sonnet/ })).not.toBeInTheDocument();
   });
 });

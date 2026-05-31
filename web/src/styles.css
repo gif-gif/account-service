@@ -586,6 +586,14 @@ input {
   align-items: end;
 }
 
+.model-config-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  column-gap: 18px;
+  row-gap: 16px;
+  align-items: end;
+}
+
 .filter-submit {
   align-self: end;
 }
@@ -860,6 +868,10 @@ input {
 
   .account-filter-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .model-config-filter-grid {
+    grid-template-columns: 1fr;
   }
 
   .filter-panel [data-slot="card-content"] {

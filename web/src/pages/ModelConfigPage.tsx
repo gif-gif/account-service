@@ -28,13 +28,32 @@ type ModelConfigItem = {
 const modelConfigKinds: ModelConfigKind[] = ["fallback_model", "hidden_model", "model_alias", "hidden_from_list"];
 
 type DialogState = { type: "create" } | { type: "edit"; item: ModelConfigItem } | { type: "delete"; item: ModelConfigItem } | null;
+type ModelConfigFilters = {
+  kind: ModelConfigKind | "";
+  key: string;
+  status: Status | "";
+};
 
 export function ModelConfigPage() {
   const { t } = useI18n();
   const [items, setItems] = useState<ModelConfigItem[]>([]);
+  const [filters, setFilters] = useState<ModelConfigFilters>({ kind: "", key: "", status: "" });
   const [dialog, setDialog] = useState<DialogState>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const keyFilter = filters.key.trim().toLowerCase();
+  const filteredItems = items.filter((item) => {
+    if (filters.kind && item.kind !== filters.kind) {
+      return false;
+    }
+    if (filters.status && item.status !== filters.status) {
+      return false;
+    }
+    if (keyFilter && !item.key.toLowerCase().includes(keyFilter)) {
+      return false;
+    }
+    return true;
+  });
 
   async function load() {
     const response = await apiFetch<{ items: ModelConfigItem[] }>("/api/v1/model-config/items");
@@ -114,6 +133,46 @@ export function ModelConfigPage() {
         </Button>
       </div>
       <div className="content-stack">
+        <Card aria-label={t("modelConfig.filterTitle")} className="filter-panel" role="region">
+          <CardHeader className="filter-panel__header">
+            <CardTitle>{t("modelConfig.filterTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="model-config-filter-grid">
+              <Label className="form-row">
+                {t("modelConfig.kind")}
+                <select
+                  className="ui-select"
+                  onChange={(event) => setFilters((current) => ({ ...current, kind: event.target.value as ModelConfigKind | "" }))}
+                  value={filters.kind}
+                >
+                  <option value="">{t("modelConfig.kindAll")}</option>
+                  {modelConfigKinds.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {kind}
+                    </option>
+                  ))}
+                </select>
+              </Label>
+              <Label className="form-row">
+                {t("modelConfig.key")}
+                <Input onChange={(event) => setFilters((current) => ({ ...current, key: event.target.value }))} value={filters.key} />
+              </Label>
+              <Label className="form-row">
+                {t("common.status")}
+                <select
+                  className="ui-select"
+                  onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as Status | "" }))}
+                  value={filters.status}
+                >
+                  <option value="">{t("modelConfig.statusAll")}</option>
+                  <option value="active">{t("common.usable")}</option>
+                  <option value="disabled">{t("common.disabled")}</option>
+                </select>
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>{t("modelConfig.listTitle")}</CardTitle>
@@ -133,7 +192,7 @@ export function ModelConfigPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant="secondary">{item.kind}</Badge>
@@ -178,7 +237,7 @@ export function ModelConfigPage() {
                 ))}
               </TableBody>
             </Table>
-            {items.length === 0 ? <p className="empty-state">{t("modelConfig.empty")}</p> : null}
+            {filteredItems.length === 0 ? <p className="empty-state">{t("modelConfig.empty")}</p> : null}
           </CardContent>
         </Card>
       </div>
