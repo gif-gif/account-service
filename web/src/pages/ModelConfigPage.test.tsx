@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,12 +66,16 @@ describe("ModelConfigPage", () => {
     render(<ModelConfigPage />);
 
     expect(await screen.findByText("auto")).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText("类型"), "model_alias");
-    await userEvent.type(screen.getByLabelText("键"), "claude-opus-4-7");
-    await userEvent.type(screen.getByLabelText("值"), "claude-opus-4.7");
-    await userEvent.clear(screen.getByLabelText("排序"));
-    await userEvent.type(screen.getByLabelText("排序"), "20");
+    expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", { name: "创建配置" }));
+    const createDialog = screen.getByRole("dialog", { name: "新增模型配置" });
+    await userEvent.selectOptions(within(createDialog).getByLabelText("类型"), "model_alias");
+    await userEvent.type(within(createDialog).getByLabelText("键"), "claude-opus-4-7");
+    await userEvent.type(within(createDialog).getByLabelText("值"), "claude-opus-4.7");
+    await userEvent.clear(within(createDialog).getByLabelText("排序"));
+    await userEvent.type(within(createDialog).getByLabelText("排序"), "20");
+    await userEvent.click(within(createDialog).getByRole("button", { name: "创建配置" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -80,11 +84,13 @@ describe("ModelConfigPage", () => {
       ),
     );
     expect(await screen.findByText("claude-opus-4.7")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole("button", { name: "编辑 claude-opus-4-7" }));
-    await userEvent.clear(screen.getByLabelText("值"));
-    await userEvent.type(screen.getByLabelText("值"), "claude-opus-4.8");
-    await userEvent.click(screen.getByRole("button", { name: "保存配置" }));
+    const editDialog = screen.getByRole("dialog", { name: "编辑模型配置" });
+    await userEvent.clear(within(editDialog).getByLabelText("值"));
+    await userEvent.type(within(editDialog).getByLabelText("值"), "claude-opus-4.8");
+    await userEvent.click(within(editDialog).getByRole("button", { name: "保存配置" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -95,6 +101,9 @@ describe("ModelConfigPage", () => {
     expect(await screen.findByText("claude-opus-4.8")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "删除 claude-opus-4-7" }));
+    const deleteDialog = screen.getByRole("dialog", { name: "删除模型配置" });
+    expect(deleteDialog).toHaveTextContent("claude-opus-4-7");
+    await userEvent.click(within(deleteDialog).getByRole("button", { name: "确认删除" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/model-config/items/item-2", expect.objectContaining({ method: "DELETE" })),
     );
