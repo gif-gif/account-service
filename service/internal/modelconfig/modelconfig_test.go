@@ -22,6 +22,8 @@ func TestServiceBuildsUnifiedConfigFromRepositoryItems(t *testing.T) {
 		{Kind: KindHiddenModel, Key: "claude-3.7-sonnet", Value: "CLAUDE_3_7_SONNET_20250219_V1_0"},
 		{Kind: KindModelAlias, Key: "claude-opus-4-7", Value: "claude-opus-4.7"},
 		{Kind: KindHiddenFromList, Key: "auto"},
+		{Kind: KindFallbackModel, Key: "disabled-model", Status: StatusDisabled, DisplayOrder: 30},
+		{Kind: KindModelAlias, Key: "disabled-alias", Value: "disabled-target", Status: StatusDisabled},
 	}))
 
 	config, err := service.Config(context.Background())
@@ -43,6 +45,14 @@ func TestServiceBuildsUnifiedConfigFromRepositoryItems(t *testing.T) {
 	if len(config.HiddenFromList) != 1 || config.HiddenFromList[0] != "auto" {
 		t.Fatalf("HiddenFromList = %#v, want [auto]", config.HiddenFromList)
 	}
+	for _, model := range config.FallbackModels {
+		if model.ModelID == "disabled-model" {
+			t.Fatal("disabled fallback model should not be included in external config")
+		}
+	}
+	if _, ok := config.ModelAliases["disabled-alias"]; ok {
+		t.Fatal("disabled model alias should not be included in external config")
+	}
 }
 
 func TestServiceValidatesAndMutatesItems(t *testing.T) {
@@ -57,6 +67,7 @@ func TestServiceValidatesAndMutatesItems(t *testing.T) {
 		Kind:         KindModelAlias,
 		Key:          " alias ",
 		Value:        " target ",
+		Status:       StatusDisabled,
 		DisplayOrder: 10,
 	})
 	if err != nil {
@@ -65,14 +76,21 @@ func TestServiceValidatesAndMutatesItems(t *testing.T) {
 	if created.Key != "alias" || created.Value != "target" {
 		t.Fatalf("created item was not normalized: %#v", created)
 	}
+	if created.Status != StatusDisabled {
+		t.Fatalf("created status = %q, want %q", created.Status, StatusDisabled)
+	}
 
 	nextValue := "new-target"
-	updated, err := service.Update(context.Background(), created.ID, UpdateItemRequest{Value: &nextValue})
+	nextStatus := StatusActive
+	updated, err := service.Update(context.Background(), created.ID, UpdateItemRequest{Value: &nextValue, Status: &nextStatus})
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
 	if updated.Value != "new-target" {
 		t.Fatalf("updated value = %q, want new-target", updated.Value)
+	}
+	if updated.Status != StatusActive {
+		t.Fatalf("updated status = %q, want %q", updated.Status, StatusActive)
 	}
 	if err := service.Delete(context.Background(), created.ID); err != nil {
 		t.Fatalf("Delete() error = %v", err)
@@ -104,6 +122,7 @@ func TestRegisterRoutesExposeAdminCRUDAndExternalConfig(t *testing.T) {
 		"kind": "model_alias",
 		"key": "claude-opus-4-7",
 		"value": "claude-opus-4.7",
+		"status": "disabled",
 		"display_order": 20
 	}`))
 	createReq.Header.Set("Content-Type", "application/json")
@@ -120,8 +139,11 @@ func TestRegisterRoutesExposeAdminCRUDAndExternalConfig(t *testing.T) {
 	if err := json.NewDecoder(createResp.Body).Decode(&createBody); err != nil {
 		t.Fatalf("decode create response: %v", err)
 	}
+	if createBody.Item.Status != StatusDisabled {
+		t.Fatalf("created status = %q, want %q", createBody.Item.Status, StatusDisabled)
+	}
 
-	updateReq := httptest.NewRequest(http.MethodPatch, "/api/v1/model-config/items/"+createBody.Item.ID, stringsReader(`{"value":"claude-opus-4.8"}`))
+	updateReq := httptest.NewRequest(http.MethodPatch, "/api/v1/model-config/items/"+createBody.Item.ID, stringsReader(`{"value":"claude-opus-4.8","status":"active"}`))
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateResp, err := app.Test(updateReq)
 	if err != nil {

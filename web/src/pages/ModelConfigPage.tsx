@@ -12,12 +12,14 @@ import { apiFetch } from "../lib/api";
 import { useI18n } from "../store/settings";
 
 type ModelConfigKind = "fallback_model" | "hidden_model" | "model_alias" | "hidden_from_list";
+type Status = "active" | "disabled";
 
 type ModelConfigItem = {
   id: string;
   kind: ModelConfigKind;
   key: string;
   value: string;
+  status: Status;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -55,6 +57,7 @@ export function ModelConfigPage() {
       kind: form.get("kind"),
       key: form.get("key"),
       value: form.get("value"),
+      status: form.get("status"),
       display_order: Number(form.get("display_order") || 0),
     };
     try {
@@ -122,7 +125,10 @@ export function ModelConfigPage() {
                   <TableHead>{t("modelConfig.kind")}</TableHead>
                   <TableHead>{t("modelConfig.key")}</TableHead>
                   <TableHead>{t("modelConfig.value")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
                   <TableHead>{t("modelConfig.order")}</TableHead>
+                  <TableHead>{t("common.createdAt")}</TableHead>
+                  <TableHead>{t("common.updatedAt")}</TableHead>
                   <TableHead className="actions-col">{t("modelConfig.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -134,7 +140,12 @@ export function ModelConfigPage() {
                     </TableCell>
                     <TableCell className="wide-cell">{item.key}</TableCell>
                     <TableCell className="wide-cell">{item.value || "-"}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={item.status} />
+                    </TableCell>
                     <TableCell>{item.display_order}</TableCell>
+                    <TableCell className="date-cell">{formatDate(item.created_at)}</TableCell>
+                    <TableCell className="date-cell">{formatDate(item.updated_at)}</TableCell>
                     <TableCell>
                       <div className="row-actions">
                         <Button
@@ -223,6 +234,10 @@ function ModelConfigDialog({
               <Input defaultValue={editingItem?.value ?? ""} name="value" />
             </Label>
             <Label className="form-row">
+              {t("common.status")}
+              <StatusSelect defaultValue={editingItem?.status ?? "active"} />
+            </Label>
+            <Label className="form-row">
               {t("modelConfig.order")}
               <Input defaultValue={editingItem?.display_order ?? 0} min={0} name="display_order" type="number" />
             </Label>
@@ -271,6 +286,32 @@ function ModelConfigDialog({
       ) : null}
     </Dialog>
   );
+}
+
+function StatusSelect({ defaultValue }: { defaultValue: Status }) {
+  const { t } = useI18n();
+  return (
+    <select className="ui-select" defaultValue={defaultValue} name="status">
+      <option value="active">{t("common.usable")}</option>
+      <option value="disabled">{t("common.disabled")}</option>
+    </select>
+  );
+}
+
+function StatusBadge({ status }: { status: Status }) {
+  const { t } = useI18n();
+  return <Badge variant={status === "active" ? "default" : "secondary"}>{status === "active" ? t("common.usable") : t("common.disabled")}</Badge>;
+}
+
+function formatDate(value: string) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }
 
 function sortItems(items: ModelConfigItem[]) {

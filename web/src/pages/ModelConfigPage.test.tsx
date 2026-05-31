@@ -19,6 +19,7 @@ describe("ModelConfigPage", () => {
                 kind: "fallback_model",
                 key: "auto",
                 value: "",
+                status: "active",
                 display_order: 10,
                 created_at: "2026-05-31T00:00:00Z",
                 updated_at: "2026-05-31T00:00:00Z",
@@ -36,6 +37,7 @@ describe("ModelConfigPage", () => {
               kind: "model_alias",
               key: "claude-opus-4-7",
               value: "claude-opus-4.7",
+              status: "disabled",
               display_order: 20,
               created_at: "2026-05-31T00:00:00Z",
               updated_at: "2026-05-31T00:00:00Z",
@@ -52,6 +54,7 @@ describe("ModelConfigPage", () => {
               kind: "model_alias",
               key: "claude-opus-4-7",
               value: "claude-opus-4.8",
+              status: "active",
               display_order: 20,
               created_at: "2026-05-31T00:00:00Z",
               updated_at: "2026-05-31T00:01:00Z",
@@ -66,11 +69,17 @@ describe("ModelConfigPage", () => {
     render(<ModelConfigPage />);
 
     expect(await screen.findByText("auto")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "状态" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "创建时间" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
+    expect(screen.getByText("可用")).toBeInTheDocument();
+    expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "创建配置" }));
     const createDialog = screen.getByRole("dialog", { name: "新增模型配置" });
     await userEvent.selectOptions(within(createDialog).getByLabelText("类型"), "model_alias");
+    await userEvent.selectOptions(within(createDialog).getByLabelText("状态"), "disabled");
     await userEvent.type(within(createDialog).getByLabelText("键"), "claude-opus-4-7");
     await userEvent.type(within(createDialog).getByLabelText("值"), "claude-opus-4.7");
     await userEvent.clear(within(createDialog).getByLabelText("排序"));
@@ -80,14 +89,16 @@ describe("ModelConfigPage", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.example.com/api/v1/model-config/items",
-        expect.objectContaining({ method: "POST", body: expect.stringContaining("claude-opus-4-7") }),
+        expect.objectContaining({ method: "POST", body: expect.stringContaining("\"status\":\"disabled\"") }),
       ),
     );
     expect(await screen.findByText("claude-opus-4.7")).toBeInTheDocument();
+    expect(await screen.findByText("禁用")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "新增模型配置" })).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole("button", { name: "编辑 claude-opus-4-7" }));
     const editDialog = screen.getByRole("dialog", { name: "编辑模型配置" });
+    await userEvent.selectOptions(within(editDialog).getByLabelText("状态"), "active");
     await userEvent.clear(within(editDialog).getByLabelText("值"));
     await userEvent.type(within(editDialog).getByLabelText("值"), "claude-opus-4.8");
     await userEvent.click(within(editDialog).getByRole("button", { name: "保存配置" }));
@@ -95,7 +106,7 @@ describe("ModelConfigPage", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.example.com/api/v1/model-config/items/item-2",
-        expect.objectContaining({ method: "PATCH", body: expect.stringContaining("claude-opus-4.8") }),
+        expect.objectContaining({ method: "PATCH", body: expect.stringContaining("\"status\":\"active\"") }),
       ),
     );
     expect(await screen.findByText("claude-opus-4.8")).toBeInTheDocument();

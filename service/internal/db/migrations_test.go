@@ -116,6 +116,8 @@ func TestInitMigrationSeedsModelConfig(t *testing.T) {
 	requiredFragments := []string{
 		"create table if not exists model_config_items",
 		"kind text not null check (kind in ('fallback_model', 'hidden_model', 'model_alias', 'hidden_from_list'))",
+		"status text not null default 'active' check (status in ('active', 'disabled'))",
+		"add column if not exists status text not null default 'active' check (status in ('active', 'disabled'))",
 		"unique (kind, key)",
 		"('fallback_model', 'claude-sonnet-4.6', '', 70)",
 		"('hidden_model', 'claude-3.7-sonnet', 'CLAUDE_3_7_SONNET_20250219_V1_0', 10)",

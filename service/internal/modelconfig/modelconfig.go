@@ -16,12 +16,16 @@ import (
 )
 
 type Kind string
+type Status string
 
 const (
 	KindFallbackModel  Kind = "fallback_model"
 	KindHiddenModel    Kind = "hidden_model"
 	KindModelAlias     Kind = "model_alias"
 	KindHiddenFromList Kind = "hidden_from_list"
+
+	StatusActive   Status = "active"
+	StatusDisabled Status = "disabled"
 )
 
 type Model struct {
@@ -40,6 +44,7 @@ type Item struct {
 	Kind         Kind      `json:"kind"`
 	Key          string    `json:"key"`
 	Value        string    `json:"value"`
+	Status       Status    `json:"status"`
 	DisplayOrder int       `json:"display_order"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -49,6 +54,7 @@ type CreateItemRequest struct {
 	Kind         Kind   `json:"kind"`
 	Key          string `json:"key"`
 	Value        string `json:"value"`
+	Status       Status `json:"status"`
 	DisplayOrder int    `json:"display_order"`
 }
 
@@ -56,6 +62,7 @@ type UpdateItemRequest struct {
 	Kind         *Kind   `json:"kind"`
 	Key          *string `json:"key"`
 	Value        *string `json:"value"`
+	Status       *Status `json:"status"`
 	DisplayOrder *int    `json:"display_order"`
 }
 
@@ -117,6 +124,9 @@ func NewMemoryRepository(items []Item) *MemoryRepository {
 		if item.ID == "" {
 			item.ID = uuid.NewString()
 		}
+		if item.Status == "" {
+			item.Status = StatusActive
+		}
 		if item.CreatedAt.IsZero() {
 			item.CreatedAt = time.Now()
 		}
@@ -149,6 +159,7 @@ func (repo *MemoryRepository) Create(ctx context.Context, request CreateItemRequ
 		Kind:         request.Kind,
 		Key:          request.Key,
 		Value:        request.Value,
+		Status:       request.Status,
 		DisplayOrder: request.DisplayOrder,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -173,6 +184,9 @@ func (repo *MemoryRepository) Update(ctx context.Context, id string, request Upd
 	}
 	if request.Value != nil {
 		item.Value = *request.Value
+	}
+	if request.Status != nil {
+		item.Status = *request.Status
 	}
 	if request.DisplayOrder != nil {
 		item.DisplayOrder = *request.DisplayOrder
@@ -260,6 +274,9 @@ func configFromItems(items []Item) Config {
 		HiddenFromList: []string{},
 	}
 	for _, item := range items {
+		if item.Status != "" && item.Status != StatusActive {
+			continue
+		}
 		switch item.Kind {
 		case KindFallbackModel:
 			config.FallbackModels = append(config.FallbackModels, Model{ModelID: item.Key})
@@ -290,8 +307,15 @@ func normalizeCreateRequest(request CreateItemRequest) (CreateItemRequest, error
 	request.Kind = Kind(strings.TrimSpace(string(request.Kind)))
 	request.Key = strings.TrimSpace(request.Key)
 	request.Value = strings.TrimSpace(request.Value)
+	request.Status = Status(strings.TrimSpace(string(request.Status)))
+	if request.Status == "" {
+		request.Status = StatusActive
+	}
 	if err := validateItemFields(request.Kind, request.Key, request.Value); err != nil {
 		return CreateItemRequest{}, err
+	}
+	if !validStatus(request.Status) {
+		return CreateItemRequest{}, errors.New("invalid model config status")
 	}
 	return request, nil
 }
@@ -309,11 +333,18 @@ func normalizeUpdateRequest(request UpdateItemRequest) (UpdateItemRequest, error
 		value := strings.TrimSpace(*request.Value)
 		request.Value = &value
 	}
+	if request.Status != nil {
+		status := Status(strings.TrimSpace(string(*request.Status)))
+		request.Status = &status
+	}
 	if request.Kind != nil && !validKind(*request.Kind) {
 		return UpdateItemRequest{}, errors.New("invalid model config kind")
 	}
 	if request.Key != nil && *request.Key == "" {
 		return UpdateItemRequest{}, errors.New("key is required")
+	}
+	if request.Status != nil && !validStatus(*request.Status) {
+		return UpdateItemRequest{}, errors.New("invalid model config status")
 	}
 	return request, nil
 }
@@ -336,4 +367,8 @@ func validKind(kind Kind) bool {
 		kind == KindHiddenModel ||
 		kind == KindModelAlias ||
 		kind == KindHiddenFromList
+}
+
+func validStatus(status Status) bool {
+	return status == StatusActive || status == StatusDisabled
 }

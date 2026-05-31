@@ -108,13 +108,18 @@ create table if not exists model_config_items (
     kind text not null check (kind in ('fallback_model', 'hidden_model', 'model_alias', 'hidden_from_list')),
     key text not null,
     value text not null default '',
+    status text not null default 'active' check (status in ('active', 'disabled')),
     display_order integer not null default 0,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (kind, key)
 );
 
+alter table model_config_items
+    add column if not exists status text not null default 'active' check (status in ('active', 'disabled'));
+
 create index if not exists idx_model_config_items_kind_order on model_config_items (kind, display_order, key);
+create index if not exists idx_model_config_items_status on model_config_items (status);
 
 insert into model_config_items (kind, key, value, display_order)
 values

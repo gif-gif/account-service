@@ -23,7 +23,7 @@ describe("App", () => {
   });
 
   it("shows the operations shell and switches sections when signed in", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ accounts: [], leases: [], audit_logs: [], items: [] }), { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ accounts: [], leases: [], audit_logs: [], callers: [], items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com");
     const store = createAuthStore();

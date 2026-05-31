@@ -609,7 +609,20 @@ curl -i 'http://127.0.0.1:8000/api/v1/leases?status=released' \
 
 ## API Key 管理
 
-API Key 用于创建外部服务调用方凭证。创建 API Key 是管理端接口，需要管理员 JWT；返回的明文 `api_key` 只在创建响应中出现一次。
+API Key 用于维护外部服务调用方凭证。API Key 管理是管理端接口，需要管理员 JWT；返回的明文 `api_key` 只在创建响应中出现一次。`status` 为 `active` 时可用于外部接口鉴权，`disabled` 时不可用。
+
+### 查询 API Key 列表
+
+```http
+GET /api/v1/api-keys
+```
+
+curl 示例：
+
+```bash
+curl -i 'http://127.0.0.1:8000/api/v1/api-keys' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
 
 ### 创建 API Key
 
@@ -625,7 +638,8 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/api-keys' \
   --header "Authorization: Bearer ${ACCESS_TOKEN}" \
   --data-raw '{
     "name": "worker",
-    "description": "local worker"
+    "description": "local worker",
+    "status": "active"
   }'
 ```
 
@@ -651,15 +665,48 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/api-keys' \
 API_KEY='acct_xxx'
 ```
 
+### 更新 API Key
+
+```http
+PATCH /api/v1/api-keys/{id}
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request PATCH 'http://127.0.0.1:8000/api/v1/api-keys/caller-id' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+  --data-raw '{
+    "name": "worker",
+    "description": "local worker",
+    "status": "disabled"
+  }'
+```
+
+### 删除 API Key
+
+```http
+DELETE /api/v1/api-keys/{id}
+```
+
+curl 示例：
+
+```bash
+curl -i --location --request DELETE 'http://127.0.0.1:8000/api/v1/api-keys/caller-id' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
 ## 模型配置管理
 
-模型配置管理接口用于维护外部服务读取的模型列表、隐藏模型、模型别名和列表隐藏项。管理接口需要管理员 JWT。
+模型配置管理接口用于维护外部服务读取的模型列表、隐藏模型、模型别名和列表隐藏项。管理接口需要管理员 JWT。外部模型配置接口只返回 `active` 状态的配置项。
 
 模型配置项字段：
 
 - `kind`：`fallback_model`、`hidden_model`、`model_alias`、`hidden_from_list`
 - `key`：模型 ID、隐藏模型名称、别名名称或隐藏列表项
 - `value`：`hidden_model` 和 `model_alias` 的目标值；其他类型可为空
+- `status`：`active` 可用、`disabled` 禁用
 - `display_order`：同类型内排序值
 
 ### 查询模型配置项
@@ -691,6 +738,7 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/model-config/ite
     "kind": "model_alias",
     "key": "claude-opus-4-7",
     "value": "claude-opus-4.7",
+    "status": "active",
     "display_order": 70
   }'
 ```
@@ -708,7 +756,8 @@ curl -i --location --request PATCH 'http://127.0.0.1:8000/api/v1/model-config/it
   --header 'Content-Type: application/json' \
   --header "Authorization: Bearer ${ACCESS_TOKEN}" \
   --data-raw '{
-    "value": "claude-opus-4.8"
+    "value": "claude-opus-4.8",
+    "status": "disabled"
   }'
 ```
 

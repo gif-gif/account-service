@@ -19,7 +19,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 
 func (repo *PostgresRepository) List(ctx context.Context) ([]Item, error) {
 	rows, err := repo.pool.Query(ctx, `
-		select id::text, kind, key, value, display_order, created_at, updated_at
+		select id::text, kind, key, value, status, display_order, created_at, updated_at
 		from model_config_items
 		order by kind, display_order, key
 	`)
@@ -31,7 +31,7 @@ func (repo *PostgresRepository) List(ctx context.Context) ([]Item, error) {
 	items := []Item{}
 	for rows.Next() {
 		var item Item
-		if err := rows.Scan(&item.ID, &item.Kind, &item.Key, &item.Value, &item.DisplayOrder, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Kind, &item.Key, &item.Value, &item.Status, &item.DisplayOrder, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan model config item: %w", err)
 		}
 		items = append(items, item)
@@ -45,14 +45,15 @@ func (repo *PostgresRepository) List(ctx context.Context) ([]Item, error) {
 func (repo *PostgresRepository) Create(ctx context.Context, request CreateItemRequest) (Item, error) {
 	var item Item
 	err := repo.pool.QueryRow(ctx, `
-		insert into model_config_items (kind, key, value, display_order)
-		values ($1, $2, $3, $4)
-		returning id::text, kind, key, value, display_order, created_at, updated_at
-	`, request.Kind, request.Key, request.Value, request.DisplayOrder).Scan(
+		insert into model_config_items (kind, key, value, status, display_order)
+		values ($1, $2, $3, $4, $5)
+		returning id::text, kind, key, value, status, display_order, created_at, updated_at
+	`, request.Kind, request.Key, request.Value, request.Status, request.DisplayOrder).Scan(
 		&item.ID,
 		&item.Kind,
 		&item.Key,
 		&item.Value,
+		&item.Status,
 		&item.DisplayOrder,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -77,6 +78,9 @@ func (repo *PostgresRepository) Update(ctx context.Context, id string, request U
 	if request.Value != nil {
 		current.Value = *request.Value
 	}
+	if request.Status != nil {
+		current.Status = *request.Status
+	}
 	if request.DisplayOrder != nil {
 		current.DisplayOrder = *request.DisplayOrder
 	}
@@ -84,14 +88,15 @@ func (repo *PostgresRepository) Update(ctx context.Context, id string, request U
 	var item Item
 	err = repo.pool.QueryRow(ctx, `
 		update model_config_items
-		set kind = $2, key = $3, value = $4, display_order = $5, updated_at = now()
+		set kind = $2, key = $3, value = $4, status = $5, display_order = $6, updated_at = now()
 		where id = $1
-		returning id::text, kind, key, value, display_order, created_at, updated_at
-	`, id, current.Kind, current.Key, current.Value, current.DisplayOrder).Scan(
+		returning id::text, kind, key, value, status, display_order, created_at, updated_at
+	`, id, current.Kind, current.Key, current.Value, current.Status, current.DisplayOrder).Scan(
 		&item.ID,
 		&item.Kind,
 		&item.Key,
 		&item.Value,
+		&item.Status,
 		&item.DisplayOrder,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -116,10 +121,10 @@ func (repo *PostgresRepository) Delete(ctx context.Context, id string) error {
 func (repo *PostgresRepository) get(ctx context.Context, id string) (Item, error) {
 	var item Item
 	err := repo.pool.QueryRow(ctx, `
-		select id::text, kind, key, value, display_order, created_at, updated_at
+		select id::text, kind, key, value, status, display_order, created_at, updated_at
 		from model_config_items
 		where id = $1
-	`, id).Scan(&item.ID, &item.Kind, &item.Key, &item.Value, &item.DisplayOrder, &item.CreatedAt, &item.UpdatedAt)
+	`, id).Scan(&item.ID, &item.Kind, &item.Key, &item.Value, &item.Status, &item.DisplayOrder, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Item{}, errors.New("model config item not found")
 	}
