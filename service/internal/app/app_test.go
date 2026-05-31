@@ -231,6 +231,50 @@ func TestNewExposesExternalRoutesWithAPIKey(t *testing.T) {
 	if statusBody.Account.Status != accounts.StatusDisabled {
 		t.Fatalf("updated status = %q, want %q", statusBody.Account.Status, accounts.StatusDisabled)
 	}
+
+	modelConfigReq := httptest.NewRequest(http.MethodGet, "/api/v1/external/model-config", nil)
+	modelConfigReq.Header.Set("Authorization", "Bearer "+callerResult.PlaintextAPIKey)
+	modelConfigResp, err := app.Test(modelConfigReq)
+	if err != nil {
+		t.Fatalf("model config app.Test() error = %v", err)
+	}
+	if modelConfigResp.StatusCode != http.StatusOK {
+		t.Fatalf("model config status = %d, want %d", modelConfigResp.StatusCode, http.StatusOK)
+	}
+	var modelConfigBody struct {
+		FallbackModels []struct {
+			ModelID string `json:"model_id"`
+		} `json:"fallback_models"`
+		HiddenModels   map[string]string `json:"hidden_models"`
+		ModelAliases   map[string]string `json:"model_aliases"`
+		HiddenFromList []string          `json:"hidden_from_list"`
+	}
+	if err := json.NewDecoder(modelConfigResp.Body).Decode(&modelConfigBody); err != nil {
+		t.Fatalf("decode model config response: %v", err)
+	}
+	if modelConfigBody.FallbackModels[0].ModelID != "auto" {
+		t.Fatalf("model config fallback first model = %q, want auto", modelConfigBody.FallbackModels[0].ModelID)
+	}
+	if modelConfigBody.ModelAliases["claude-opus-4-7"] != "claude-opus-4.7" {
+		t.Fatalf("model config alias claude-opus-4-7 = %q", modelConfigBody.ModelAliases["claude-opus-4-7"])
+	}
+}
+
+func TestNewCanDisableExternalAPIKeyAuth(t *testing.T) {
+	authEnabled := false
+	app := New(Options{
+		CallerStore:               callers.NewMemoryStore(),
+		ExternalAPIKeyAuthEnabled: &authEnabled,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/external/model-config", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
 }
 
 func TestNewRegistersAccountRoutes(t *testing.T) {

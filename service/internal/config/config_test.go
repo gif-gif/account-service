@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -20,6 +22,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://account:account@localhost:5432/account?sslmode=disable")
 	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
 	t.Setenv("ADMIN_SESSION_SECRET", "admin-session-secret")
+	t.Setenv("EXTERNAL_API_KEY_AUTH_ENABLED", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -58,6 +61,96 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.HealthCheckDatabaseTimeout != 3*time.Second {
 		t.Fatalf("HealthCheckDatabaseTimeout = %s, want 3s", cfg.HealthCheckDatabaseTimeout)
+	}
+	if cfg.ExternalAPIKeyAuthEnabled {
+		t.Fatal("ExternalAPIKeyAuthEnabled = true, want false by default in local env")
+	}
+}
+
+func TestLoadReadsLocalEnvFileWhenProcessEnvIsMissing(t *testing.T) {
+	workDir := t.TempDir()
+	envPath := filepath.Join(workDir, ".env.local")
+	if err := os.WriteFile(envPath, []byte(`
+APP_ENV=local
+DATABASE_URL=postgres://account:account@localhost:5432/account?sslmode=disable
+SECRET_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+ADMIN_SESSION_SECRET=local-admin-session-secret
+HTTP_PORT=8123
+EXTERNAL_API_KEY_AUTH_ENABLED=false
+`), 0o600); err != nil {
+		t.Fatalf("WriteFile(.env.local) error = %v", err)
+	}
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatalf("Chdir(temp dir) error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	for _, key := range []string{
+		"APP_ENV",
+		"DATABASE_URL",
+		"SECRET_ENCRYPTION_KEY",
+		"ADMIN_SESSION_SECRET",
+		"HTTP_PORT",
+		"EXTERNAL_API_KEY_AUTH_ENABLED",
+	} {
+		t.Setenv(key, "")
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("Unsetenv(%s) error = %v", key, err)
+		}
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.DatabaseURL == "" {
+		t.Fatal("DatabaseURL is empty, want value loaded from .env.local")
+	}
+	if cfg.HTTPPort != 8123 {
+		t.Fatalf("HTTPPort = %d, want 8123", cfg.HTTPPort)
+	}
+	if cfg.ExternalAPIKeyAuthEnabled {
+		t.Fatal("ExternalAPIKeyAuthEnabled = true, want false from .env.local")
+	}
+}
+
+func TestLoadExternalAPIKeyAuthDefaultsByEnvironment(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://account:account@localhost:5432/account?sslmode=disable")
+	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("ADMIN_SESSION_SECRET", "admin-session-secret")
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("EXTERNAL_API_KEY_AUTH_ENABLED", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.ExternalAPIKeyAuthEnabled {
+		t.Fatal("ExternalAPIKeyAuthEnabled = false, want true outside local env")
+	}
+}
+
+func TestLoadExternalAPIKeyAuthCanBeOverridden(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://account:account@localhost:5432/account?sslmode=disable")
+	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("ADMIN_SESSION_SECRET", "admin-session-secret")
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("EXTERNAL_API_KEY_AUTH_ENABLED", "false")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.ExternalAPIKeyAuthEnabled {
+		t.Fatal("ExternalAPIKeyAuthEnabled = true, want false when env overrides it")
 	}
 }
 

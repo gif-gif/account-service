@@ -23,11 +23,14 @@ The root `.env` file is kept as a local-compatible fallback for existing command
 - `LEASE_CLEANUP_INTERVAL_SECONDS`: Lease cleanup interval, usually `60`.
 - `ADMIN_SESSION_SECRET`: Admin session signing secret.
 - `CORS_ALLOWED_ORIGINS`: Comma-separated frontend origins.
+- `EXTERNAL_API_KEY_AUTH_ENABLED`: Enables API Key authentication for `/api/v1/external/*`. Defaults to `false` when `APP_ENV=local`, otherwise `true`.
 - `LOG_LEVEL`: zerolog level, defaults to `info`.
 - `LOG_DIR`: Log file directory for non-development environments, defaults to `logs`.
 - `HEALTH_CHECK_DATABASE_TIMEOUT_SECONDS`: Database readiness timeout.
 
 When `APP_ENV=development`, logs are printed to the console. Other environments write logs to `LOG_DIR/YYYY-MM-DD.log`.
+
+At startup, the service also attempts to load missing environment variables from `SERVICE_ENV_FILE`, `ENV_FILE`, `.env.<APP_ENV>`, `.env.local`, and `.env` in the current directory, parent directory, or `/app`. Existing process environment variables are never overwritten.
 
 Validate all service environment files with:
 

@@ -19,11 +19,14 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func init() {
-
-}
-
+//	func init() {
+//		os.Setenv("APP_ENV", "local")
+//	}
 func main() {
+	defer func() {
+		fmt.Print("Shutting down1...", time.Now().String())
+	}()
+
 	cfg, err := config.Load()
 	logger := logging.New(os.Stdout, "info")
 	if err != nil {
@@ -48,8 +51,11 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort)
+	fmt.Printf("Listening on %s, %s\n", addr, time.Now().String())
 	if err := fiberApp.Listen(addr); err != nil {
+		fmt.Print("Shutting down...", time.Now().String())
 		logger.Fatal().Err(err).Str("addr", addr).Msg("listen")
+		return
 	}
 }
 
@@ -78,12 +84,13 @@ func buildApp(cfg config.Config) (*fiber.App, error) {
 	adminService := admin.NewService(adminStore, cfg.AdminSessionSecret, cfg.JWTAccessTokenTTL, cfg.JWTRefreshTokenTTL)
 
 	return app.New(app.Options{
-		HealthChecker:  healthCheckerFunc(func(context.Context) error { return nil }),
-		AdminService:   adminService,
-		AccountService: accountService,
-		LeaseService:   leaseService,
-		CallerStore:    callerStore,
-		CORSOrigins:    cfg.CORSAllowedOrigins,
+		HealthChecker:             healthCheckerFunc(func(context.Context) error { return nil }),
+		AdminService:              adminService,
+		AccountService:            accountService,
+		LeaseService:              leaseService,
+		CallerStore:               callerStore,
+		ExternalAPIKeyAuthEnabled: &cfg.ExternalAPIKeyAuthEnabled,
+		CORSOrigins:               cfg.CORSAllowedOrigins,
 	}), nil
 }
 

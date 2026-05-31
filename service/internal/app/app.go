@@ -9,17 +9,20 @@ import (
 	"account-service/service/internal/health"
 	"account-service/service/internal/httpx"
 	"account-service/service/internal/leases"
+	"account-service/service/internal/modelconfig"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type Options struct {
-	HealthChecker  health.Checker
-	AdminService   *admin.Service
-	AccountService *accounts.Service
-	LeaseService   *leases.Service
-	CallerStore    *callers.MemoryStore
-	CORSOrigins    []string
+	HealthChecker             health.Checker
+	AdminService              *admin.Service
+	AccountService            *accounts.Service
+	LeaseService              *leases.Service
+	CallerStore               *callers.MemoryStore
+	ModelConfig               *modelconfig.Service
+	ExternalAPIKeyAuthEnabled *bool
+	CORSOrigins               []string
 }
 
 func New(options Options) *fiber.App {
@@ -50,13 +53,24 @@ func New(options Options) *fiber.App {
 	}
 	if options.CallerStore != nil {
 		callers.RegisterRoutes(fiberApp, options.CallerStore)
-		fiberApp.Use("/api/v1/external", httpx.APIKeyAuth(options.CallerStore))
+		externalAPIKeyAuthEnabled := true
+		if options.ExternalAPIKeyAuthEnabled != nil {
+			externalAPIKeyAuthEnabled = *options.ExternalAPIKeyAuthEnabled
+		}
+		if externalAPIKeyAuthEnabled {
+			fiberApp.Use("/api/v1/external", httpx.APIKeyAuth(options.CallerStore))
+		}
 		if options.AccountService != nil {
 			accounts.RegisterExternalRoutes(fiberApp, options.AccountService)
 		}
 		if options.LeaseService != nil {
 			leases.RegisterExternalRoutes(fiberApp, options.LeaseService)
 		}
+		modelConfig := options.ModelConfig
+		if modelConfig == nil {
+			modelConfig = modelconfig.NewDefaultService()
+		}
+		modelconfig.RegisterExternalRoutes(fiberApp, modelConfig)
 	}
 
 	return fiberApp

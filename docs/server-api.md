@@ -653,10 +653,56 @@ API_KEY='acct_xxx'
 
 ## 外部服务账号接口
 
-外部服务账号接口统一使用 API Key 鉴权，不接受管理员 JWT。请求头格式：
+外部服务接口默认使用 API Key 鉴权，不接受管理员 JWT。鉴权可通过服务端环境变量 `EXTERNAL_API_KEY_AUTH_ENABLED` 控制：本地环境默认关闭，其他环境默认开启。开启时请求头格式：
 
 ```http
 Authorization: Bearer <api_key>
+```
+
+### 外部查询模型配置
+
+```http
+GET /api/v1/external/model-config
+```
+
+统一返回可用兜底模型、隐藏模型、模型别名和列表隐藏项，便于外部服务动态读取模型配置。
+
+curl 示例：
+
+```bash
+curl -i 'http://127.0.0.1:8000/api/v1/external/model-config' \
+  --header "Authorization: Bearer ${API_KEY}"
+```
+
+成功响应：
+
+```json
+{
+  "fallback_models": [
+    { "model_id": "auto" },
+    { "model_id": "claude-sonnet-4" },
+    { "model_id": "claude-haiku-4.5" },
+    { "model_id": "claude-sonnet-4.5" },
+    { "model_id": "claude-opus-4.5" },
+    { "model_id": "claude-opus-4.6" },
+    { "model_id": "claude-sonnet-4.6" }
+  ],
+  "hidden_models": {
+    "claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0",
+    "claude-opus-4.6": "claude-opus-4.6",
+    "claude-sonnet-4.6": "claude-sonnet-4.6"
+  },
+  "model_aliases": {
+    "auto-kiro": "auto",
+    "claude-opus-4-6": "claude-opus-4.6",
+    "claude-sonnet-4-6": "claude-sonnet-4.6",
+    "claude-opus-4-5": "claude-opus-4.5",
+    "claude-sonnet-4-5": "claude-sonnet-4.5",
+    "claude-haiku-4-5": "claude-haiku-4.5",
+    "claude-opus-4-7": "claude-opus-4.7"
+  },
+  "hidden_from_list": ["auto"]
+}
 ```
 
 ### 外部查询账号
