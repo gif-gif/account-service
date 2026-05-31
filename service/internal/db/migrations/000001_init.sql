@@ -34,11 +34,15 @@ create table if not exists api_callers (
     id uuid primary key default gen_random_uuid(),
     name text not null unique,
     api_key_hash text not null,
+    api_key_plaintext text not null default '',
     status text not null check (status in ('active', 'disabled')),
     description text not null default '',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table api_callers
+    add column if not exists api_key_plaintext text not null default '';
 
 create index if not exists idx_api_callers_status on api_callers (status);
 

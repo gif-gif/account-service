@@ -1,11 +1,16 @@
 package callers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"account-service/service/internal/db"
+	"account-service/service/internal/testutil"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -63,7 +68,10 @@ func TestMemoryStoreListsUpdatesAndDeletesCallers(t *testing.T) {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	callers := store.List()
+	callers, err := store.List()
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
 	if len(callers) != 1 {
 		t.Fatalf("List() length = %d, want 1", len(callers))
 	}
@@ -94,7 +102,11 @@ func TestMemoryStoreListsUpdatesAndDeletesCallers(t *testing.T) {
 	if err := store.Delete(result.Caller.ID); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
-	if callers := store.List(); len(callers) != 0 {
+	callers, err = store.List()
+	if err != nil {
+		t.Fatalf("List() after delete error = %v", err)
+	}
+	if len(callers) != 0 {
 		t.Fatalf("List() length after delete = %d, want 0", len(callers))
 	}
 }
@@ -180,6 +192,70 @@ func TestRegisterRoutesExposeAPIKeyCRUD(t *testing.T) {
 	}
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
+	}
+}
+
+func TestPostgresStorePersistsCallers(t *testing.T) {
+	databaseURL := os.Getenv("TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+
+	ctx := context.Background()
+	pool := testutil.OpenTestDB(t, ctx, databaseURL)
+	testutil.ResetSchema(t, ctx, pool)
+	if err := db.ApplyMigrations(ctx, pool); err != nil {
+		t.Fatalf("ApplyMigrations() error = %v", err)
+	}
+
+	store := NewPostgresStore(pool)
+	created, err := store.CreateWithStatus(CreateRequest{Name: "worker", Description: "background worker", Status: StatusActive})
+	if err != nil {
+		t.Fatalf("CreateWithStatus() error = %v", err)
+	}
+	if created.PlaintextAPIKey == "" {
+		t.Fatal("expected plaintext API key")
+	}
+
+	name := "worker-renamed"
+	description := "renamed worker"
+	status := StatusDisabled
+	updated, err := store.Update(created.Caller.ID, UpdateRequest{Name: &name, Description: &description, Status: &status})
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	if updated.Name != name || updated.Description != description || updated.Status != StatusDisabled {
+		t.Fatalf("updated caller = %#v", updated)
+	}
+
+	reopened := NewPostgresStore(pool)
+	callers, err := reopened.List()
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(callers) != 1 {
+		t.Fatalf("List() length = %d, want 1", len(callers))
+	}
+	if callers[0].Name != name || callers[0].Description != description || callers[0].Status != StatusDisabled {
+		t.Fatalf("persisted caller = %#v", callers[0])
+	}
+	revealed, err := reopened.RevealAPIKey(created.Caller.ID)
+	if err != nil {
+		t.Fatalf("RevealAPIKey() error = %v", err)
+	}
+	if revealed != created.PlaintextAPIKey {
+		t.Fatalf("revealed api key = %q, want original plaintext", revealed)
+	}
+	if _, ok := reopened.Authenticate(created.PlaintextAPIKey); ok {
+		t.Fatal("expected disabled persisted caller authentication to fail")
+	}
+
+	status = StatusActive
+	if _, err := reopened.Update(created.Caller.ID, UpdateRequest{Status: &status}); err != nil {
+		t.Fatalf("Update() activate error = %v", err)
+	}
+	if caller, ok := store.Authenticate(created.PlaintextAPIKey); !ok || caller.ID != created.Caller.ID {
+		t.Fatalf("expected persisted API key to authenticate, caller = %#v ok = %v", caller, ok)
 	}
 }
 

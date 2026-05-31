@@ -49,6 +49,15 @@ type UpdateRequest struct {
 	Status      *Status `json:"status"`
 }
 
+type Store interface {
+	List() ([]Caller, error)
+	CreateWithStatus(request CreateRequest) (CreateResult, error)
+	Authenticate(apiKey string) (Caller, bool)
+	RevealAPIKey(id string) (string, error)
+	Update(id string, request UpdateRequest) (Caller, error)
+	Delete(id string) error
+}
+
 type MemoryStore struct {
 	mu      sync.Mutex
 	callers map[string]Caller
@@ -93,7 +102,7 @@ func (store *MemoryStore) CreateWithStatus(request CreateRequest) (CreateResult,
 	return CreateResult{Caller: caller, PlaintextAPIKey: apiKey}, nil
 }
 
-func (store *MemoryStore) List() []Caller {
+func (store *MemoryStore) List() ([]Caller, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
@@ -107,7 +116,7 @@ func (store *MemoryStore) List() []Caller {
 		}
 		return callers[i].CreatedAt.After(callers[j].CreatedAt)
 	})
-	return callers
+	return callers, nil
 }
 
 func (store *MemoryStore) Authenticate(apiKey string) (Caller, bool) {
@@ -179,9 +188,13 @@ func (store *MemoryStore) Delete(id string) error {
 	return nil
 }
 
-func RegisterRoutes(app *fiber.App, store *MemoryStore) {
+func RegisterRoutes(app *fiber.App, store Store) {
 	app.Get("/api/v1/api-keys", func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{"callers": store.List()})
+		callers, err := store.List()
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": fiber.Map{"code": "internal_error", "message": "Failed to list API keys"}})
+		}
+		return c.JSON(fiber.Map{"callers": callers})
 	})
 
 	app.Post("/api/v1/api-keys", func(c fiber.Ctx) error {

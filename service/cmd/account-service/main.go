@@ -49,6 +49,7 @@ func main() {
 
 	fiberApp, err := buildApp(cfg)
 	if err != nil {
+		fmt.Print("build app error: ", err.Error())
 		logger.Fatal().Err(err).Msg("build app")
 	}
 
@@ -70,7 +71,7 @@ func buildApp(cfg config.Config) (*fiber.App, error) {
 	auditWriter := audit.NewMemoryWriter()
 	accountService := accounts.NewService(accounts.NewMemoryRepository(codec), codec, auditWriter)
 	leaseService := leases.NewService(accountService, cfg.DefaultLeaseTTL, cfg.MaxLeaseTTL, auditWriter)
-	callerStore := callers.NewMemoryStore()
+	var callerStore callers.Store = callers.NewMemoryStore()
 	modelConfigService := modelconfig.NewService(modelconfig.NewMemoryRepository(nil))
 	if cfg.DatabaseURL != "" {
 		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
@@ -81,6 +82,7 @@ func buildApp(cfg config.Config) (*fiber.App, error) {
 			pool.Close()
 			return nil, err
 		}
+		callerStore = callers.NewPostgresStore(pool)
 		modelConfigService = modelconfig.NewService(modelconfig.NewPostgresRepository(pool))
 	}
 

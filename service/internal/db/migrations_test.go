@@ -73,6 +73,24 @@ func TestInitMigrationDefinesDefaultAdminSeed(t *testing.T) {
 	}
 }
 
+func TestInitMigrationIncludesAPIKeyPlaintextColumn(t *testing.T) {
+	sqlBytes, err := migrationFiles.ReadFile("migrations/000001_init.sql")
+	if err != nil {
+		t.Fatalf("read init migration: %v", err)
+	}
+	sql := string(sqlBytes)
+
+	requiredFragments := []string{
+		"api_key_plaintext text not null default ''",
+		"add column if not exists api_key_plaintext text not null default ''",
+	}
+	for _, fragment := range requiredFragments {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("init migration missing api key plaintext column fragment %q", fragment)
+		}
+	}
+}
+
 func TestInitMigrationConstrainsAccountType(t *testing.T) {
 	sqlBytes, err := migrationFiles.ReadFile("migrations/000001_init.sql")
 	if err != nil {

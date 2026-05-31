@@ -19,7 +19,7 @@ type Options struct {
 	AdminService              *admin.Service
 	AccountService            *accounts.Service
 	LeaseService              *leases.Service
-	CallerStore               *callers.MemoryStore
+	CallerStore               callers.Store
 	ModelConfig               *modelconfig.Service
 	ExternalAPIKeyAuthEnabled *bool
 	CORSOrigins               []string
