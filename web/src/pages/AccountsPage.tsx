@@ -11,7 +11,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { apiFetch } from "../lib/api";
-import type { Account, AccountsStore } from "../store/accounts";
+import type { Account, AccountsStore, AccountType } from "../store/accounts";
 import { useAccountsStore } from "../store/accounts";
 import { useI18n, type TranslationKey } from "../store/settings";
 
@@ -713,6 +713,9 @@ function AccountForm({
   submitLabel: string;
   t: (key: TranslationKey) => string;
 }) {
+  const [accountType, setAccountType] = useState<AccountType>(account?.account_type ?? "claude");
+  const requiresKiroAwsFields = accountType === "kiro-aws";
+
   return (
     <form className="account-form" onSubmit={onSubmit}>
       <div className="form-grid form-grid--two">
@@ -726,15 +729,15 @@ function AccountForm({
         </Label>
         <Label className="form-row">
           {t("accounts.loginUrl")}
-          <Input defaultValue={account?.login_url ?? ""} name="login_url" />
+          <Input defaultValue={account?.login_url ?? ""} name="login_url" required={requiresKiroAwsFields} />
         </Label>
         <Label className="form-row">
           {t("accounts.region")}
-          <Input defaultValue={account?.region ?? ""} name="region" />
+          <Input defaultValue={account?.region ?? ""} name="region" required={requiresKiroAwsFields} />
         </Label>
         <Label className="form-row">
           {t("accounts.accountType")}
-          <AccountTypeSelect ariaLabel={t("accounts.accountType")} defaultValue={account?.account_type} name="account_type" />
+          <AccountTypeSelect ariaLabel={t("accounts.accountType")} name="account_type" onValueChange={(value) => setAccountType(value as AccountType)} value={accountType} />
         </Label>
         <Label className="form-row">
           {t("accounts.status")}

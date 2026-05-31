@@ -292,6 +292,25 @@ describe("AccountsPage", () => {
     );
   });
 
+  it("requires login url and region when creating a kiro aws account", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AccountsPage store={createAccountsStore()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "添加账号" }));
+    const createDialog = screen.getByRole("dialog", { name: "添加账号" });
+    await userEvent.type(within(createDialog).getByLabelText("用户名"), "kiro@example.com");
+    await selectDropdownOption(within(createDialog).getByLabelText("账号类型"), "kiro-aws");
+
+    expect(within(createDialog).getByLabelText("登录地址")).toBeRequired();
+    expect(within(createDialog).getByLabelText("区域")).toBeRequired();
+
+    await userEvent.click(within(createDialog).getByRole("button", { name: "创建" }));
+
+    expect(fetchMock).not.toHaveBeenCalledWith("https://api.example.com/api/v1/accounts", expect.objectContaining({ method: "POST" }));
+  });
+
   it("shows login only for kiro account types and requires confirmation", async () => {
     setAuthTokens({ accessToken: "access-token", refreshToken: "refresh-token" });
     const fetchMock = vi

@@ -62,27 +62,29 @@ var validAccountTypes = map[AccountType]bool{
 }
 
 type Account struct {
-	ID                  string      `json:"id"`
-	Username            string      `json:"username"`
-	Password            string      `json:"password,omitempty"`
-	LoginURL            string      `json:"login_url"`
-	AccessToken         string      `json:"access_token,omitempty"`
-	RefreshToken        string      `json:"refresh_token,omitempty"`
-	Region              string      `json:"region"`
-	AccountType         AccountType `json:"account_type"`
-	Status              Status      `json:"status"`
-	QuotaTotal          int64       `json:"quota_total"`
-	QuotaUsed           int64       `json:"quota_used"`
-	QuotaRemaining      int64       `json:"quota_remaining"`
-	MaxConcurrentLeases int         `json:"max_concurrent_leases"`
-	Tags                []string    `json:"tags"`
-	Notes               string      `json:"notes"`
-	KiroExpiresAt       *time.Time  `json:"kiro_expires_at,omitempty"`
-	KiroProfileARN      string      `json:"kiro_profile_arn"`
-	KiroAuthMethod      string      `json:"kiro_auth_method"`
-	KiroProvider        string      `json:"kiro_provider"`
-	CreatedAt           time.Time   `json:"created_at"`
-	UpdatedAt           time.Time   `json:"updated_at"`
+	ID                  string         `json:"id"`
+	Username            string         `json:"username"`
+	Password            string         `json:"password,omitempty"`
+	LoginURL            string         `json:"login_url"`
+	AccessToken         string         `json:"access_token,omitempty"`
+	RefreshToken        string         `json:"refresh_token,omitempty"`
+	Region              string         `json:"region"`
+	AccountType         AccountType    `json:"account_type"`
+	Status              Status         `json:"status"`
+	QuotaTotal          int64          `json:"quota_total"`
+	QuotaUsed           int64          `json:"quota_used"`
+	QuotaRemaining      int64          `json:"quota_remaining"`
+	QuotaResetAt        *time.Time     `json:"quota_reset_at"`
+	MaxConcurrentLeases int            `json:"max_concurrent_leases"`
+	Tags                []string       `json:"tags"`
+	Metadata            map[string]any `json:"metadata"`
+	Notes               string         `json:"notes"`
+	KiroExpiresAt       *time.Time     `json:"kiro_expires_at"`
+	KiroProfileARN      string         `json:"kiro_profile_arn"`
+	KiroAuthMethod      string         `json:"kiro_auth_method"`
+	KiroProvider        string         `json:"kiro_provider"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
 }
 
 type StoredAccount struct {
@@ -165,6 +167,12 @@ type KiroLoginResult struct {
 	Status    string `json:"status"`
 }
 
+type statusRequest struct {
+	AccountID string `json:"account_id"`
+	Status    Status `json:"status"`
+	Reason    string `json:"reason"`
+}
+
 type MemoryRepository struct {
 	mu       sync.Mutex
 	accounts map[string]StoredAccount
@@ -239,6 +247,7 @@ func (service *Service) Create(request CreateAccountRequest) (Account, error) {
 			QuotaRemaining:      request.QuotaRemaining,
 			MaxConcurrentLeases: request.MaxConcurrentLeases,
 			Tags:                normalizeTags(request.Tags),
+			Metadata:            map[string]any{},
 			Notes:               request.Notes,
 			KiroExpiresAt:       request.KiroExpiresAt,
 			KiroProfileARN:      request.KiroProfileARN,
@@ -484,6 +493,9 @@ func (service *Service) KiroLoginTargetURL(accountID string) (string, bool) {
 
 func (service *Service) decrypt(account StoredAccount) (Account, error) {
 	out := account.Account
+	if out.Metadata == nil {
+		out.Metadata = map[string]any{}
+	}
 	var err error
 	out.Password, err = service.codec.Decrypt(account.PasswordEncrypted)
 	if err != nil {
@@ -516,6 +528,7 @@ func RegisterRoutes(app *fiber.App, service *Service) {
 func RegisterExternalRoutes(app *fiber.App, service *Service) {
 	app.Post("/api/v1/external/accounts/query", service.handleQuery)
 	app.Get("/api/v1/external/accounts", service.handleList)
+	app.Post("/api/v1/external/accounts/status", service.handleExternalStatus)
 	app.Post("/api/v1/external/accounts/:id/status", service.handleStatus)
 }
 
@@ -577,14 +590,26 @@ func (service *Service) handleUpdate(c fiber.Ctx) error {
 }
 
 func (service *Service) handleStatus(c fiber.Ctx) error {
-	var request struct {
-		Status Status `json:"status"`
-		Reason string `json:"reason"`
-	}
+	var request statusRequest
 	if err := c.Bind().Body(&request); err != nil {
 		return jsonError(c, http.StatusBadRequest, "invalid_request", "Invalid status request")
 	}
 	account, err := service.Update(c.Params("id"), UpdateAccountRequest{Status: &request.Status})
+	if err != nil {
+		return jsonError(c, http.StatusUnprocessableEntity, "invalid_status", err.Error())
+	}
+	return c.Status(http.StatusOK).JSON(fiber.Map{"account": account})
+}
+
+func (service *Service) handleExternalStatus(c fiber.Ctx) error {
+	var request statusRequest
+	if err := c.Bind().Body(&request); err != nil {
+		return jsonError(c, http.StatusBadRequest, "invalid_request", "Invalid status request")
+	}
+	if strings.TrimSpace(request.AccountID) == "" {
+		return jsonError(c, http.StatusBadRequest, "invalid_request", "account_id is required")
+	}
+	account, err := service.Update(request.AccountID, UpdateAccountRequest{Status: &request.Status})
 	if err != nil {
 		return jsonError(c, http.StatusUnprocessableEntity, "invalid_status", err.Error())
 	}

@@ -912,9 +912,15 @@ curl -i 'http://127.0.0.1:8000/api/v1/external/accounts?region=us&account_type=c
       "quota_total": 1000,
       "quota_used": 100,
       "quota_remaining": 900,
+      "quota_reset_at": null,
       "max_concurrent_leases": 1,
       "tags": ["openai"],
+      "metadata": {},
       "notes": "",
+      "kiro_expires_at": null,
+      "kiro_profile_arn": "",
+      "kiro_auth_method": "",
+      "kiro_provider": "",
       "created_at": "2026-05-25T11:00:00Z",
       "updated_at": "2026-05-25T11:00:00Z"
     }
@@ -926,6 +932,7 @@ curl -i 'http://127.0.0.1:8000/api/v1/external/accounts?region=us&account_type=c
 
 ```http
 POST /api/v1/external/accounts/{id}/status
+POST /api/v1/external/accounts/status
 ```
 
 curl 示例：
@@ -937,6 +944,19 @@ curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/account
   --data-raw '{
     "status": "disabled",
     "reason": "maintenance"
+  }'
+```
+
+也可以把账号 ID 放到请求体中，避免路径变量为空时出现 `/accounts//status`：
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:8000/api/v1/external/accounts/status' \
+  --header 'Content-Type: application/json' \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --data-raw '{
+    "account_id": "account-id",
+    "status": "token_expired",
+    "reason": "refresh failed"
   }'
 ```
 

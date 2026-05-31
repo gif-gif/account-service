@@ -401,6 +401,93 @@ func TestHandlersExposeAccountAPI(t *testing.T) {
 	}
 }
 
+func TestExternalStatusHandlerAcceptsAccountIDInBody(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	account := createTestAccount(t, svc, StatusActive)
+	app := fiber.New()
+	RegisterExternalRoutes(app, svc)
+
+	statusResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/external/accounts/status", `{
+		"account_id":"`+account.ID+`",
+		"status":"token_expired",
+		"reason":"refresh failed"
+	}`))
+	if err != nil {
+		t.Fatalf("status app.Test() error = %v", err)
+	}
+	if statusResp.StatusCode != http.StatusOK {
+		t.Fatalf("status update status = %d, want %d", statusResp.StatusCode, http.StatusOK)
+	}
+
+	updated, err := svc.Get(account.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if updated.Status != StatusTokenExpired {
+		t.Fatalf("Status = %q, want %q", updated.Status, StatusTokenExpired)
+	}
+}
+
+func TestExternalQueryReturnsAccountTableAlignedFields(t *testing.T) {
+	codec := mustCodec(t)
+	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
+	account := createTestAccount(t, svc, StatusActive)
+	app := fiber.New()
+	RegisterExternalRoutes(app, svc)
+
+	queryResp, err := app.Test(jsonRequest(http.MethodPost, "/api/v1/external/accounts/query", `{"limit":10}`))
+	if err != nil {
+		t.Fatalf("query app.Test() error = %v", err)
+	}
+	if queryResp.StatusCode != http.StatusOK {
+		t.Fatalf("query status = %d, want %d", queryResp.StatusCode, http.StatusOK)
+	}
+
+	var body struct {
+		Accounts []map[string]any `json:"accounts"`
+	}
+	if err := json.NewDecoder(queryResp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode query response: %v", err)
+	}
+	if len(body.Accounts) != 1 {
+		t.Fatalf("accounts length = %d, want 1", len(body.Accounts))
+	}
+	got := body.Accounts[0]
+	if got["id"] != account.ID {
+		t.Fatalf("id = %v, want %s", got["id"], account.ID)
+	}
+	for _, field := range []string{
+		"id",
+		"username",
+		"password",
+		"login_url",
+		"access_token",
+		"refresh_token",
+		"region",
+		"account_type",
+		"status",
+		"quota_total",
+		"quota_used",
+		"quota_remaining",
+		"quota_reset_at",
+		"max_concurrent_leases",
+		"tags",
+		"metadata",
+		"notes",
+		"kiro_expires_at",
+		"kiro_profile_arn",
+		"kiro_auth_method",
+		"kiro_provider",
+		"created_at",
+		"updated_at",
+	} {
+		if _, ok := got[field]; !ok {
+			t.Fatalf("external account missing field %q in %#v", field, got)
+		}
+	}
+}
+
 func TestHandlersExposeKiroLoginAPI(t *testing.T) {
 	codec := mustCodec(t)
 	svc := NewService(NewMemoryRepository(codec), codec, audit.NewMemoryWriter())
