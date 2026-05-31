@@ -534,6 +534,12 @@ input {
   gap: 10px;
 }
 
+.secret-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .secret-box code,
 .metadata-code {
   border-radius: 6px;

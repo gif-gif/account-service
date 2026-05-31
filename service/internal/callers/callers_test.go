@@ -31,6 +31,14 @@ func TestCreateReturnsPlaintextOnceAndStoresHash(t *testing.T) {
 	if caller.ID != result.Caller.ID {
 		t.Fatalf("caller ID = %s, want %s", caller.ID, result.Caller.ID)
 	}
+
+	apiKey, err := store.RevealAPIKey(result.Caller.ID)
+	if err != nil {
+		t.Fatalf("RevealAPIKey() error = %v", err)
+	}
+	if apiKey != result.PlaintextAPIKey {
+		t.Fatalf("revealed api key = %q, want original plaintext", apiKey)
+	}
 }
 
 func TestDisableCallerRejectsAuthentication(t *testing.T) {
@@ -130,6 +138,27 @@ func TestRegisterRoutesExposeAPIKeyCRUD(t *testing.T) {
 	if len(listBody.Callers) != 1 || listBody.Callers[0].Name != "worker" {
 		t.Fatalf("list callers = %#v", listBody.Callers)
 	}
+	if apiKey, ok := callerJSONField(listBody.Callers[0], "api_key"); ok && apiKey != "" {
+		t.Fatalf("list response exposed api_key = %q", apiKey)
+	}
+
+	secretReq := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/"+createBody.Caller.ID+"/secret", nil)
+	secretResp, err := app.Test(secretReq)
+	if err != nil {
+		t.Fatalf("secret app.Test() error = %v", err)
+	}
+	if secretResp.StatusCode != http.StatusOK {
+		t.Fatalf("secret status = %d, want %d", secretResp.StatusCode, http.StatusOK)
+	}
+	var secretBody struct {
+		APIKey string `json:"api_key"`
+	}
+	if err := json.NewDecoder(secretResp.Body).Decode(&secretBody); err != nil {
+		t.Fatalf("decode secret response: %v", err)
+	}
+	if secretBody.APIKey != createBody.PlaintextAPIKey {
+		t.Fatalf("secret api key = %q, want created plaintext", secretBody.APIKey)
+	}
 
 	updateReq := httptest.NewRequest(http.MethodPatch, "/api/v1/api-keys/"+createBody.Caller.ID, strings.NewReader(`{
 		"name": "worker-2",
@@ -152,4 +181,12 @@ func TestRegisterRoutesExposeAPIKeyCRUD(t *testing.T) {
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
+}
+
+func callerJSONField(caller Caller, field string) (string, bool) {
+	body, _ := json.Marshal(caller)
+	values := map[string]string{}
+	_ = json.Unmarshal(body, &values)
+	value, ok := values[field]
+	return value, ok
 }

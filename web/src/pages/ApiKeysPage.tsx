@@ -17,6 +17,7 @@ type Status = "active" | "disabled";
 type Caller = {
   id: string;
   name: string;
+  api_key?: string;
   status: Status;
   description: string;
   created_at: string;
@@ -24,11 +25,13 @@ type Caller = {
 };
 
 type DialogState = { type: "create" } | { type: "edit"; caller: Caller } | { type: "delete"; caller: Caller } | null;
+type SecretDialogState = { title: string; value: string } | null;
 
 export function ApiKeysPage() {
   const { t } = useI18n();
   const [callers, setCallers] = useState<Caller[]>([]);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [secretDialog, setSecretDialog] = useState<SecretDialogState>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -92,6 +95,16 @@ export function ApiKeysPage() {
     }
   }
 
+  async function revealAPIKey(caller: Caller) {
+    setError("");
+    try {
+      const response = await apiFetch<{ api_key: string }>(`/api/v1/api-keys/${caller.id}/secret`, { method: "GET" });
+      setSecretDialog({ title: t("apiKeys.secretLabel"), value: response.api_key });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("apiKeys.error"));
+    }
+  }
+
   return (
     <main className="page">
       <div className="page-header">
@@ -120,6 +133,7 @@ export function ApiKeysPage() {
               <TableRow>
                 <TableHead>{t("apiKeys.fieldName")}</TableHead>
                 <TableHead>{t("apiKeys.fieldDescription")}</TableHead>
+                <TableHead>{t("apiKeys.secretLabel")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
                 <TableHead>{t("common.createdAt")}</TableHead>
                 <TableHead>{t("common.updatedAt")}</TableHead>
@@ -131,6 +145,14 @@ export function ApiKeysPage() {
                 <TableRow key={caller.id}>
                   <TableCell className="wide-cell">{caller.name}</TableCell>
                   <TableCell className="wide-cell">{caller.description || "-"}</TableCell>
+                  <TableCell>
+                    <div className="secret-inline">
+                      <code>••••••••</code>
+                      <Button aria-label={`${t("common.reveal")} ${t("apiKeys.secretLabel")} ${caller.name}`} onClick={() => void revealAPIKey(caller)} size="sm" type="button" variant="secondary">
+                        {t("common.reveal")}
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={caller.status} />
                   </TableCell>
@@ -177,7 +199,31 @@ export function ApiKeysPage() {
         </CardContent>
       </Card>
       <ApiKeyDialog dialog={dialog} error={error} saving={saving} onClose={() => setDialog(null)} onDelete={handleDelete} onSubmit={handleSubmit} />
+      <SecretValueDialog dialog={secretDialog} onClose={() => setSecretDialog(null)} />
     </main>
+  );
+}
+
+function SecretValueDialog({ dialog, onClose }: { dialog: SecretDialogState; onClose: () => void }) {
+  const { t } = useI18n();
+  return (
+    <Dialog open={dialog !== null} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      {dialog ? (
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{dialog.title}</DialogTitle>
+          </DialogHeader>
+          <code className="secret-value">{dialog.value || "-"}</code>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                {t("common.close")}
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
 

@@ -19,6 +19,7 @@ describe("ApiKeysPage", () => {
                 name: "worker",
                 description: "background worker",
                 status: "active",
+                api_key: "should-not-render-from-list",
                 created_at: "2026-05-31T00:00:00Z",
                 updated_at: "2026-05-31T00:00:00Z",
               },
@@ -27,6 +28,7 @@ describe("ApiKeysPage", () => {
           { status: 200 },
         ),
       )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ api_key: "acct_worker" }), { status: 200 }))
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -64,10 +66,21 @@ describe("ApiKeysPage", () => {
     render(<ApiKeysPage />);
 
     expect(await screen.findByText("worker")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "API Key" })).toBeInTheDocument();
+    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expect(screen.queryByText("should-not-render-from-list")).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "状态" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "创建时间" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "更新时间" })).toBeInTheDocument();
     expect(screen.getByText("可用")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "查看 API Key worker" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("https://api.example.com/api/v1/api-keys/caller-id/secret", expect.objectContaining({ method: "GET" })),
+    );
+    const secretDialog = screen.getByRole("dialog", { name: "API Key" });
+    expect(secretDialog).toHaveTextContent("acct_worker");
+    await userEvent.click(within(secretDialog).getByRole("button", { name: "关闭" }));
 
     await userEvent.click(screen.getByRole("button", { name: "创建 API Key" }));
     const createDialog = screen.getByRole("dialog", { name: "创建 API Key" });

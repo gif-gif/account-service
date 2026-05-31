@@ -22,13 +22,14 @@ const (
 )
 
 type Caller struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	APIKeyHash  string    `json:"-"`
-	Status      Status    `json:"status"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	APIKeyHash      string    `json:"-"`
+	PlaintextAPIKey string    `json:"-"`
+	Status          Status    `json:"status"`
+	Description     string    `json:"description"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type CreateResult struct {
@@ -76,13 +77,14 @@ func (store *MemoryStore) CreateWithStatus(request CreateRequest) (CreateResult,
 	}
 	now := time.Now()
 	caller := Caller{
-		ID:          uuid.NewString(),
-		Name:        request.Name,
-		APIKeyHash:  security.HashAPIKey(apiKey),
-		Status:      request.Status,
-		Description: request.Description,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:              uuid.NewString(),
+		Name:            request.Name,
+		APIKeyHash:      security.HashAPIKey(apiKey),
+		PlaintextAPIKey: apiKey,
+		Status:          request.Status,
+		Description:     request.Description,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	store.mu.Lock()
@@ -118,6 +120,20 @@ func (store *MemoryStore) Authenticate(apiKey string) (Caller, bool) {
 		}
 	}
 	return Caller{}, false
+}
+
+func (store *MemoryStore) RevealAPIKey(id string) (string, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	caller, ok := store.callers[id]
+	if !ok {
+		return "", errors.New("caller not found")
+	}
+	if caller.PlaintextAPIKey == "" {
+		return "", errors.New("api key secret not available")
+	}
+	return caller.PlaintextAPIKey, nil
 }
 
 func (store *MemoryStore) Update(id string, request UpdateRequest) (Caller, error) {
@@ -178,6 +194,14 @@ func RegisterRoutes(app *fiber.App, store *MemoryStore) {
 			return c.Status(http.StatusUnprocessableEntity).JSON(fiber.Map{"error": fiber.Map{"code": "invalid_api_key", "message": err.Error()}})
 		}
 		return c.Status(http.StatusCreated).JSON(result)
+	})
+
+	app.Get("/api/v1/api-keys/:id/secret", func(c fiber.Ctx) error {
+		apiKey, err := store.RevealAPIKey(c.Params("id"))
+		if err != nil {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": fiber.Map{"code": "api_key_not_found", "message": "API key not found"}})
+		}
+		return c.JSON(fiber.Map{"api_key": apiKey})
 	})
 
 	app.Patch("/api/v1/api-keys/:id", func(c fiber.Ctx) error {

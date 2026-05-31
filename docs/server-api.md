@@ -684,6 +684,27 @@ curl -i --location --request PATCH 'http://127.0.0.1:8000/api/v1/api-keys/caller
   }'
 ```
 
+### 查看 API Key 明文
+
+```http
+GET /api/v1/api-keys/{id}/secret
+```
+
+curl 示例：
+
+```bash
+curl -i 'http://127.0.0.1:8000/api/v1/api-keys/caller-id/secret' \
+  --header "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+成功响应：
+
+```json
+{
+  "api_key": "acct_xxx"
+}
+```
+
 ### 删除 API Key
 
 ```http
